@@ -65,7 +65,12 @@
       "botToken": { "source": "env", "provider": "default", "id": "TELEGRAM_BOT_TOKEN" },
       "dmPolicy": "allowlist",
       "allowFrom": [],
-      "streaming": "partial",
+      "streaming": {
+        "mode": "partial",
+        "chunkMode": "line",
+        "preview": { "chunk": 120 },
+        "block": { "enabled": true, "coalesce": true }
+      },
       "customCommands": [
         { "command": "help",        "description": "❓ Show all commands with usage examples" },
         { "command": "new_project", "description": "🚀 Start a new SaaS project (guided questionnaire)" },
@@ -88,16 +93,6 @@
       "enabled": true,
       "allow": ["ceo", "scout", "cmo", "arch", "accountant"]
     }
-  },
-
-  "rbac": {
-    "sensitiveOps": [
-      { "op": "revenue",    "threshold": 1000, "reason": "Large revenue recording" },
-      { "op": "bounty",     "threshold": 500,  "reason": "Large bounty grant" },
-      { "op": "archive",    "threshold": 0,    "reason": "Project archival is irreversible" },
-      { "op": "fire_agent", "threshold": 0,    "reason": "Agent replacement affects org structure" },
-      { "op": "governance", "threshold": 0,    "reason": "Company-wide governance changes" }
-    ]
   },
 
   "cron": {
@@ -131,10 +126,9 @@
 
   "gateway": {
     "port": 18789,
-    "bind": "127.0.0.1",
+    "bind": "loopback",
     "auth": {
-      "mode": "token",
-      "token": "${OPENCLAW_HOOKS_TOKEN}"
+      "mode": "token"
     },
     "channelHealthCheckMinutes": 5,
     "channelStaleEventThresholdMinutes": 30,
