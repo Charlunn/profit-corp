@@ -24,4 +24,4 @@ Audit the company's health and enforce the survival of the fittest.
 Run `python3 shared/manage_finance.py score ceo [1-10] "[Reasoning]"`
 
 ## Self-Learning
-Read `shared/CORP_CULTURE.md`. Ensure that the scoring trends are not repeating past errors that led to total bankruptcy.
+Read `shared/CORP_CULTURE.md` and `shared/KNOWLEDGE_BASE.md` — filter cards tagged `#audit` or `#failure`. Ensure that the scoring trends are not repeating past errors that led to total bankruptcy.

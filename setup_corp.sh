@@ -96,7 +96,26 @@ fi
 
 info "✓ Config written to $OPENCLAW_CONFIG"
 
-# ── Register agents ───────────────────────────────────────────────────────────
+# ── Remove legacy 'main' default agent ───────────────────────────────────────
+# OpenCLAW's single-agent mode creates a "main" workspace/agent by default.
+# Profit-corp uses CEO as the default; the 'main' agent must not exist or it
+# will intercept unmatched messages and corrupt the org structure.
+info "Removing legacy 'main' default agent (if present)..."
+
+# Remove from OpenCLAW agent registry (idempotent — ignores errors if absent)
+openclaw agents remove main --force 2>/dev/null || true
+
+# Remove any leftover main workspace directory under the state dir
+MAIN_WORKSPACE="$OPENCLAW_CONFIG_DIR/agents/main"
+if [[ -d "$MAIN_WORKSPACE" ]]; then
+    warn "Found leftover main workspace at $MAIN_WORKSPACE — removing..."
+    rm -rf "$MAIN_WORKSPACE"
+    info "✓ Legacy 'main' workspace removed."
+else
+    info "✓ No legacy 'main' workspace found (clean)."
+fi
+
+
 info "Registering corp agents with OpenCLAW..."
 
 agents=(scout cmo arch ceo accountant)

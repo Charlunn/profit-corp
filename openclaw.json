@@ -103,15 +103,19 @@
       allowFrom: [],
       streaming: "partial",
       // Custom commands appear in the Telegram bot menu (tap "/" to see them)
+      // These also work as clickable buttons in the Telegram "/" shortcut menu.
       customCommands: [
-        { command: "new_project", description: "🚀 Start a new SaaS project with Scout + CMO" },
-        { command: "status", description: "📊 Get company treasury & agent status" },
-        { command: "daily", description: "🌅 Run the full daily pipeline now" },
-        { command: "revenue", description: "💰 Record revenue: /revenue <amount> <source> <note>" },
-        { command: "greenlight", description: "✅ Greenlight a project: /greenlight <id> <reason>" },
-        { command: "veto", description: "❌ Veto a project: /veto <id> <reason>" },
-        { command: "audit", description: "📋 Trigger Accountant daily audit" },
-        { command: "archive", description: "🗄️ Archive completed project: /archive <project_name>" },
+        { command: "help",        description: "❓ Show all commands with usage examples" },
+        { command: "new_project", description: "🚀 Start a new SaaS project (guided questionnaire)" },
+        { command: "status",      description: "📊 Get company treasury & agent status" },
+        { command: "daily",       description: "🌅 Run the full daily pipeline now" },
+        { command: "revenue",     description: "💰 Record revenue: /revenue <amount> <source> <note>" },
+        { command: "greenlight",  description: "✅ Greenlight a project: /greenlight <id> <reason>" },
+        { command: "veto",        description: "❌ Veto a project: /veto <id> <reason>" },
+        { command: "audit",       description: "📋 Trigger Accountant daily audit" },
+        { command: "archive",     description: "🗄️ Archive completed project: /archive <project_name>" },
+        { command: "confirm",     description: "🔐 Confirm a pending sensitive operation" },
+        { command: "cancel",      description: "🚫 Cancel the last pending operation" },
       ],
     },
   },
@@ -128,6 +132,35 @@
       // Allow all corp agents to communicate with each other
       allow: ["ceo", "scout", "cmo", "arch", "accountant"],
     },
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // ROLE-BASED ACCESS CONTROL (RBAC)
+  // Defines permission tiers for corp operations.
+  // CEO enforces these gates in its AGENTS.md — before executing a
+  // sensitive action it must request /confirm from the operator.
+  //
+  // Tiers:
+  //   owner    → Full control (financial edits, governance, firing agents)
+  //   operator → Day-to-day commands (new project, status, audit)
+  //   viewer   → Read-only (status, audit view)
+  //
+  // The allowFrom list in channels.telegram already restricts who can
+  // DM the bot. This section documents the intent so CEO can enforce
+  // confirmation gates in its business logic.
+  // ──────────────────────────────────────────────────────────────
+  rbac: {
+    // Operations that require a two-step /confirm before execution.
+    // CEO will describe the action, wait for the user to type /confirm,
+    // then proceed. Any other response cancels the operation.
+    sensitiveOps: [
+      // Financial operations above the threshold require confirmation.
+      { op: "revenue",    threshold: 1000, reason: "Large revenue recording" },
+      { op: "bounty",     threshold: 500,  reason: "Large bounty grant" },
+      { op: "archive",    threshold: 0,    reason: "Project archival is irreversible" },
+      { op: "fire_agent", threshold: 0,    reason: "Agent replacement affects org structure" },
+      { op: "governance", threshold: 0,    reason: "Company-wide governance changes" },
+    ],
   },
 
   // ──────────────────────────────────────────────────────────────

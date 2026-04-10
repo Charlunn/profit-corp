@@ -40,3 +40,14 @@
 - **Lesson**: {{what_did_we_learn}}
 - **Action**: {{strategy_change}}
 ```
+
+## [CEO/Accountant] KNOWLEDGE_BASE.md Knowledge Card
+Append to `shared/KNOWLEDGE_BASE.md` after every major decision:
+```markdown
+## Card: {{project_or_event_name}} — {{YYYY-MM-DD}}
+- **Type**: decision | failure | pattern | milestone
+- **Outcome**: {{GO/NO-GO/revenue/veto/archive/milestone}}
+- **Lesson**: {{one-line key insight}}
+- **Tags**: #{{tag1}} #{{tag2}}
+```
+
