@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openclaw agents:*)",
+      "Bash(pnpm openclaw:*)",
+      "Bash(node openclaw.mjs agents add scout --workspace \"C:/Users/42236/profit-corp/workspaces/scout\" --non-interactive)",
+      "Bash(node openclaw.mjs agents add cmo --workspace \"C:/Users/42236/profit-corp/workspaces/cmo\" --non-interactive)",
+      "Bash(node openclaw.mjs agents add arch --workspace \"C:/Users/42236/profit-corp/workspaces/arch\" --non-interactive)",
+      "Bash(node openclaw.mjs agents add ceo --workspace \"C:/Users/42236/profit-corp/workspaces/ceo\" --non-interactive)",
+      "Bash(node openclaw.mjs agents add accountant --workspace \"C:/Users/42236/profit-corp/workspaces/accountant\" --non-interactive)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npm install:*)",
+      "Bash(ls -F dist/entry*)",
+      "Bash(node openclaw.mjs agents list)",
+      "Bash(node openclaw.mjs doctor --fix)",
+      "Bash(curl -s http://127.0.0.1:11434/api/tags)",
+      "Bash(node openclaw.mjs gateway run --port 18789 --local)",
+      "Bash(node openclaw.mjs gateway run --help)"
+    ]
+  }
+}

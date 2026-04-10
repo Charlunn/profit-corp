@@ -1,0 +1,25 @@
+{
+  "project": "Profit-First SaaS Inc.",
+  "agents": {
+    "scout": {
+      "skills": ["blogwatcher", "xurl", "summarize"],
+      "workspace": "./workspaces/scout"
+    },
+    "cmo": {
+      "skills": ["github", "gh-issues", "blogwatcher"],
+      "workspace": "./workspaces/cmo"
+    },
+    "arch": {
+      "skills": ["coding-agent", "summarize", "model-usage"],
+      "workspace": "./workspaces/arch"
+    },
+    "ceo": {
+      "skills": ["summarize", "github"],
+      "workspace": "./workspaces/ceo"
+    },
+    "accountant": {
+      "skills": ["model-usage", "healthcheck", "session-logs"],
+      "workspace": "./workspaces/accountant"
+    }
+  }
+}
