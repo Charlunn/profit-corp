@@ -158,9 +158,20 @@ agents=(scout cmo arch ceo accountant)
 for agent in "${agents[@]}"; do
     workspace="$CORP_ROOT/workspaces/$agent"
     info "  → Adding agent: $agent (workspace: $workspace)"
-    # `openclaw agents add` is idempotent — re-running is safe
-    openclaw agents add "$agent" --workspace "$workspace" --non-interactive || \
-        warn "  ⚠ Could not register $agent — gateway may not be running yet. Run after starting: openclaw gateway"
+
+    # Treat "already exists" as success; only warn on real failures.
+    out="$(openclaw agents add "$agent" --workspace "$workspace" --non-interactive 2>&1)" || rc=$?
+    rc=${rc:-0}
+
+    if [[ $rc -eq 0 ]]; then
+        info "  ✓ Registered $agent"
+    elif echo "$out" | grep -qi "already exists"; then
+        info "  ✓ $agent already registered (skipped)"
+    else
+        warn "  ⚠ Could not register $agent"
+        echo "$out" | sed 's/^/[corp]     /'
+    fi
+    unset rc
 done
 
 # ── Register daily cron job ───────────────────────────────────────────────────
@@ -197,10 +208,10 @@ Deliver a concise executive summary of the outcome to this Telegram chat."
         2>/dev/null || warn "Could not register cron job — gateway may not be running yet."
 fi
 
-# ── Initialise Ledger ─────────────────────────────────────────────────────────
+# ── Initialise Ledger (idempotent reset) ──────────────────────────────────────
 if [[ -n "$PYTHON_CMD" ]]; then
-    info "Initialising company ledger..."
-    $PYTHON_CMD "$CORP_ROOT/shared/manage_finance.py" audit
+    info "Resetting company ledger to baseline..."
+    $PYTHON_CMD "$CORP_ROOT/shared/manage_finance.py" reset "Profit-First SaaS Inc."
 fi
 
 # ── Verify ────────────────────────────────────────────────────────────────────

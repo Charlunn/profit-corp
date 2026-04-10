@@ -75,25 +75,29 @@ def log_event(event_type, agent_id, amount, reasoning):
         print(f"Warning: Could not write to audit log: {e}")
 
 
+def _default_ledger(company_name="Profit-First SaaS Inc."):
+    return {
+        "company_name": company_name,
+        "treasury": 500,
+        "maturity_level": "Bootstrapping",
+        "status": "growth",
+        "last_updated": datetime.now().strftime("%Y-%m-%d"),
+        "agents": {
+            "scout":      {"points": 100, "generation": 1},
+            "cmo":        {"points": 100, "generation": 1},
+            "arch":       {"points": 100, "generation": 1},
+            "ceo":        {"points": 100, "generation": 1},
+            "accountant": {"points": 100, "generation": 1},
+            # NOTE: Add any new agents here AND register them in openclaw.json.
+            # Do NOT add agents here without a corresponding workspace + AGENTS.md.
+        }
+    }
+
+
 def load_ledger():
     """Load ledger from disk. Must be called inside a _ledger_lock() block."""
     if not os.path.exists(LEDGER_PATH):
-        return {
-            "company_name": "Profit-First SaaS Inc.",
-            "treasury": 500,
-            "maturity_level": "Bootstrapping",
-            "status": "growth",
-            "last_updated": datetime.now().strftime("%Y-%m-%d"),
-            "agents": {
-                "scout":      {"points": 100, "generation": 1},
-                "cmo":        {"points": 100, "generation": 1},
-                "arch":       {"points": 100, "generation": 1},
-                "ceo":        {"points": 100, "generation": 1},
-                "accountant": {"points": 100, "generation": 1},
-                # NOTE: Add any new agents here AND register them in openclaw.json.
-                # Do NOT add agents here without a corresponding workspace + AGENTS.md.
-            }
-        }
+        return _default_ledger()
     with open(LEDGER_PATH, 'r') as f:
         return json.load(f)
 
@@ -255,6 +259,16 @@ def log_token_usage(agent_id, input_tokens, output_tokens):
         save_ledger(ledger)
 
 
+def reset_ledger(company_name="Profit-First SaaS Inc."):
+    """Reset ledger to baseline state. Intended for idempotent setup/re-setup."""
+    with _ledger_lock():
+        ledger = _default_ledger(company_name=company_name)
+        with open(LEDGER_PATH, 'w') as f:
+            json.dump(ledger, f, indent=2)
+        print("Ledger has been reset to baseline.")
+        return
+
+
 def daily_audit():
     with _ledger_lock():
         ledger = load_ledger()
@@ -283,7 +297,7 @@ def daily_audit():
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python manage_finance.py [score|audit|tokens|revenue|bounty] ...")
+        print("Usage: python manage_finance.py [score|audit|tokens|revenue|bounty|reset] ...")
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -297,7 +311,10 @@ if __name__ == "__main__":
         record_revenue(sys.argv[2], sys.argv[3], sys.argv[4])
     elif cmd == "bounty":
         grant_bounty(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif cmd == "reset":
+        company_name = sys.argv[2] if len(sys.argv) >= 3 else "Profit-First SaaS Inc."
+        reset_ledger(company_name)
     else:
         print(f"Unknown command: {cmd}")
-        print("Usage: python manage_finance.py [score|audit|tokens|revenue|bounty] ...")
+        print("Usage: python manage_finance.py [score|audit|tokens|revenue|bounty|reset] ...")
         sys.exit(1)
