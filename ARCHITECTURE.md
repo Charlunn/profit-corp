@@ -160,16 +160,60 @@ appear in Telegram's "/" menu as **clickable buttons**. No manual typing needed:
 
 | Command | Target |
 |---|---|
-| `/new_project` | CEO → Scout chain |
+| `/help` | CEO replies with formatted command list |
+| `/new_project` | CEO runs interactive guided questionnaire → Scout chain |
 | `/status` | CEO reads LEDGER.json |
 | `/daily` | CEO triggers full pipeline |
-| `/revenue <amt> <src> <note>` | Accountant records revenue |
+| `/revenue <amt> <src> <note>` | Accountant records revenue (RBAC gate if ≥ 1000) |
+| `/bounty <amount> <agent> <task>` | CEO grants bounty (RBAC gate if ≥ 500) |
 | `/greenlight <id> <reason>` | CEO approves project |
 | `/veto <id> <reason>` | CEO kills project |
 | `/audit` | Accountant runs daily audit |
-| `/archive <project>` | CEO archives completed project |
+| `/archive <project>` | CEO archives project (RBAC gate — always requires `/confirm`) |
+| `/confirm` | Confirms the last pending sensitive operation |
+| `/cancel` | Cancels the last pending sensitive operation |
 
-### 3.3 Feedback Loop
+### 3.3 Interactive `/new_project` Questionnaire
+
+For non-technical users, `/new_project` with no argument triggers a step-by-step dialog:
+
+```
+User: /new_project
+CEO:  🚀 Let's start a new project! What problem does it solve? (one sentence)
+User: Developers forget to update their changelogs
+CEO:  Who are the customers? (e.g. developers, small businesses, ...)
+User: Individual developers and small teams
+CEO:  Any known competitors? (or type 'none')
+User: Keep a Changelog (manual), git-cliff (auto but no UI)
+CEO:  What's your rough pricing idea?
+User: $5/mo
+CEO:  Ready! I'll brief Scout and CMO now. 🔍
+      [sessions_spawn Scout + CMO + Arch chain]
+```
+
+No parameters, no JSON, no command-line syntax — just chat.
+
+### 3.4 RBAC Confirmation Gates
+
+Sensitive operations require the user to type `/confirm` before execution:
+
+```
+User: /revenue 1500 stripe "Annual subscription"
+CEO:  💰 You're about to record 1500 pts from stripe.
+      Reply /confirm to proceed or /cancel to abort.
+User: /confirm
+CEO:  ✅ Revenue recorded! Treasury: 2,000 pts. Phase: Scaling!
+```
+
+The same two-step gate applies to:
+- `/bounty` when amount ≥ 500
+- All `/archive` requests
+- Any `fire_agent` or `governance` change requests
+
+Any reply other than `/confirm` cancels the pending action. `/cancel` clears the queue explicitly.
+The `rbac.sensitiveOps` list in `openclaw.json` documents the full policy.
+
+### 3.5 Feedback Loop
 
 ```
 You → /revenue 500 product_hunt "App featured"
@@ -200,9 +244,10 @@ cd /path/to/profit-corp
 This script:
 1. Detects OpenCLAW installation.
 2. Writes `openclaw.json` to `~/.openclaw/` (merges safely).
-3. Runs `openclaw agents add` for each corp agent.
-4. Registers the daily cron job.
-5. Verifies with `openclaw agents list --bindings`.
+3. **Removes any legacy `main` default agent** (`openclaw agents remove main --force`).
+4. Runs `openclaw agents add` for each corp agent.
+5. Registers the daily cron job.
+6. Verifies with `openclaw agents list --bindings`.
 
 ### Mode B: Full Docker Stack
 
@@ -215,6 +260,7 @@ docker-compose up -d
 This spins up:
 - OpenCLAW gateway (with profit-corp config auto-applied)
 - Persistent volumes for workspaces, sessions, cron, and the ledger
+- **Entrypoint automatically removes any leftover `main` agent on every start**
 
 ### File Locations
 
@@ -225,15 +271,99 @@ This spins up:
 | Cron jobs | `~/.openclaw/cron/jobs.json` |
 | Corp workspaces | `PROFIT_CORP_ROOT/workspaces/<agent>/` |
 | Shared ledger | `PROFIT_CORP_ROOT/shared/LEDGER.json` |
+| Knowledge base | `PROFIT_CORP_ROOT/shared/KNOWLEDGE_BASE.md` |
 | Project archives | `PROFIT_CORP_ROOT/archives/<project>/` |
 
 ---
 
-## 5. Answers to Open Questions
+## 5. Knowledge Flow & Cross-Project Memory
+
+### 5.1 Knowledge Base
+
+`shared/KNOWLEDGE_BASE.md` is the company's long-term memory. It stores structured
+"knowledge cards" — one card per major decision, lesson, or milestone.
+
+**Format**:
+```markdown
+## Card: <Project/Event Name> — <YYYY-MM-DD>
+- **Type**: decision | failure | pattern | milestone
+- **Outcome**: GO/NO-GO/revenue/veto/archive
+- **Lesson**: one-line key insight
+- **Tags**: #revenue #bootstrapping #competition
+```
+
+**Who writes**: CEO after GO/NO-GO decisions, Accountant after audits.
+**Who reads**: All agents at session start (consult before major decisions).
+
+### 5.2 Context Injection Flow
+
+```
+Session Start
+    ↓
+CEO reads shared/KNOWLEDGE_BASE.md (company memory)
+    ↓
+CEO reads shared/CORP_CULTURE.md (team rules & lessons)
+    ↓
+CEO reads shared/LEDGER.json (current treasury/scores)
+    ↓
+Decision / dispatch
+    ↓
+CEO writes new knowledge card to KNOWLEDGE_BASE.md (if noteworthy)
+```
+
+The same pattern applies to sub-agents: Scout reads KNOWLEDGE_BASE.md to avoid
+repeating failed lead categories; CMO reads it to avoid previously vetoed markets.
+
+### 5.3 Session History Recall
+
+For in-session cross-agent recall, use OpenCLAW's `sessions_history` tool:
+
+```
+sessions_history({ agentId: "scout", limit: 20 })
+// Returns the last 20 messages from Scout's most recent session
+```
+
+This avoids re-running work that was already done in the same pipeline cycle.
+
+---
+
+## 6. RBAC & Permission System
+
+### 6.1 Policy
+
+Profit-corp implements a two-level permission model:
+
+| Level | Description |
+|---|---|
+| `operator` | Can run all read commands + start new projects + trigger pipeline |
+| `owner` | Can additionally execute financial changes, archive, governance |
+
+All users in `channels.telegram.allowFrom` are trusted as `owner` by default (the
+allowlist is your personal ID). If you add team members, add a lower-trust tier by
+restricting which commands they can trigger via separate agent bindings.
+
+### 6.2 Confirmation Gates
+
+For sensitive operations CEO will **pause and ask for `/confirm`** before executing:
+
+| Operation | Trigger | Reason |
+|---|---|---|
+| `/revenue <amount ≥ 1000>` | amount ≥ 1000 | Large financial change |
+| `/bounty <amount ≥ 500>` | amount ≥ 500 | Large bounty grant |
+| `/archive <project>` | always | Irreversible action |
+| `fire_agent` | always | Org structure change |
+| `governance` | always | Company-wide policy change |
+
+The full policy is declared in `openclaw.json` under the `rbac.sensitiveOps` key.
+
+---
+
+## 7. Answers to Open Questions
 
 ### Q: Can the default agent be safely removed?
 **Yes.** Set `default: true` on the CEO agent in `agents.list`. No `main` workspace
-needed. All unmatched input lands at CEO.
+needed. All unmatched input lands at CEO. Both `setup_corp.sh` and
+`docker-entrypoint.sh` explicitly remove any leftover `main` workspace.
 
 ### Q: Will keeping a default agent affect multi-agent independence?
 **No**, as long as CEO is explicitly set as the default and all channels have explicit
@@ -249,8 +379,7 @@ Telegram bridge code needed. The `customCommands` key registers clickable
 menu buttons in the Telegram bot.
 
 ### Q: Are there any redundant communication layers?
-**No, after this integration.** The old `deploy_corp.sh` called
-`openclaw agent create` (deprecated). The new setup uses:
+**No, after this integration.** The setup uses:
 - `openclaw agents add` for registration
 - `openclaw cron add` for scheduling
 - `channels.telegram` for channel integration

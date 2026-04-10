@@ -26,4 +26,4 @@ Every morning, you must find at least 3 high-quality "pain points" from the last
 Run `python3 shared/manage_finance.py score ceo [1-10] "[Reasoning]"`
 
 ## Self-Learning
-Read `shared/CORP_CULTURE.md`. If your previous generation failed, understand if it's because you provided "noise" instead of "signal."
+Read `shared/CORP_CULTURE.md` and `shared/KNOWLEDGE_BASE.md` — filter cards tagged `#lead` or `#failure`. If your previous generation failed, understand if it's because you provided "noise" instead of "signal."

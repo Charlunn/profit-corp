@@ -14,6 +14,7 @@ Kills a project proposal.
 
 ### `/bounty <amount> <agent> <task>`
 Grants a one-time bounty from the Treasury for critical survival tasks (e.g., MVP launch).
+If `<amount>` ≥ 500, set a pending action and wait for `/confirm`; any other reply cancels.
 - **Command**: `python3 shared/manage_finance.py bounty {{amount}} {{agent}} "{{task}}"`
 
 ### `/score <agent> <score> <reason>`

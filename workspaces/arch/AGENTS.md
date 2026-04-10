@@ -24,4 +24,4 @@ Design the technical path for a 24-hour build.
 Run `python3 shared/manage_finance.py score cmo [1-10] "[Reasoning]"`
 
 ## Self-Learning
-Read `shared/CORP_CULTURE.md`. Avoid tech stacks that the Dev Agent struggled to deploy in the past.
+Read `shared/CORP_CULTURE.md` and `shared/KNOWLEDGE_BASE.md` — filter cards tagged `#tech-stack` or `#failure`. Avoid tech stacks that the Dev Agent struggled to deploy in the past.

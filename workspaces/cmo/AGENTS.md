@@ -24,4 +24,4 @@ Turn a "pain point" into a "business case."
 Run `python3 shared/manage_finance.py score scout [1-10] "[Reasoning]"`
 
 ## Self-Learning
-Read `shared/CORP_CULTURE.md`. Avoid ideas that previously had high competition but low willingness to pay.
+Read `shared/CORP_CULTURE.md` and `shared/KNOWLEDGE_BASE.md` — filter cards tagged `#competition` or `#marketing`. Avoid ideas that previously had high competition but low willingness to pay.

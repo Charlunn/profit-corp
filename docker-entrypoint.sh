@@ -33,6 +33,18 @@ else
     echo "[entrypoint] openclaw.json already exists — skipping write."
 fi
 
+# ── Remove legacy 'main' default agent ────────────────────────────────────────
+# Profit-corp designates CEO as the default agent. Any pre-existing 'main'
+# agent must be removed so it cannot intercept unmatched messages.
+echo "[entrypoint] Removing legacy 'main' default agent (if present)..."
+openclaw agents remove main --force 2>/dev/null || true
+MAIN_WORKSPACE="$STATE_DIR/agents/main"
+if [[ -d "$MAIN_WORKSPACE" ]]; then
+    echo "[entrypoint] Removing leftover main workspace: $MAIN_WORKSPACE"
+    rm -rf "$MAIN_WORKSPACE"
+fi
+echo "[entrypoint] ✓ Default agent cleanup complete."
+
 # ── Ensure archives directory exists ─────────────────────────────────────────
 mkdir -p "$CORP_ROOT/archives"
 
