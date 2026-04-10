@@ -36,7 +36,7 @@ confirm() { read -r -p "$1 [y/N] " ans; [[ "$ans" =~ ^[Yy]$ ]]; }
 CORP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPENCLAW_CONFIG_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 OPENCLAW_CONFIG="$OPENCLAW_CONFIG_DIR/openclaw.json"
-OPENCLAW_CONFIG_BACKUP="$OPENCLAW_CONFIG_DIR/openclaw.json.pre-corp.bak"
+OPENCLAW_CONFIG_BACKUP="$OPENCLAW_CONFIG_DIR/openclaw.json.$(date +%Y%m%d_%H%M%S).bak"
 
 info "Profit-First SaaS Inc. — Corp Setup"
 info "Corp root : $CORP_ROOT"

@@ -1,4 +1,5 @@
 # Profit-Corp Communication Templates
+[English] | [简体中文](TEMPLATES_CN.md)
 
 ## [Scout] PAIN_POINTS.md
 ```markdown

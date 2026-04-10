@@ -22,12 +22,19 @@ sessions_spawn({ agentId: "arch",       message: "Write tech spec for shared/MAR
 sessions_spawn({ agentId: "accountant", message: "Run daily audit now." })
 ```
 
-## Knowledge Base — Read First, Write Last
-At the **start of every session**, read `shared/KNOWLEDGE_BASE.md` to recall proven patterns,
-past failures, and recurring decisions. Reference it when making your GO/NO-GO calls.
+## Knowledge Base — Tiered Memory Management
+At the **start of every session**, read `shared/KNOWLEDGE_BASE.md`. 
 
-At the **end of every session**, append a knowledge card if a noteworthy decision was made:
+**Token-Saving Strategy**:
+1. Read **Section 1 (Index)** and **Section 2 (Recent)** fully.
+2. **Triggered Recall**: If Section 1 mentions a historical project or lesson that is highly relevant to your current task, only then proceed to read the full details in **Section 3 (Archives)**. Do not read Section 3 by default.
 
+At the **end of every session**, update the memory:
+1. Append a new **full Knowledge Card** to Section 2.
+2. Add a **one-line index entry** to Section 1.
+3. **Maintenance**: If Section 2 contains more than 5 cards, move the oldest card into Section 3 to keep the hot context small and save tokens.
+
+### Knowledge Card Format
 ```markdown
 ## Card: <Project/Event Name> — <YYYY-MM-DD>
 - **Type**: decision | failure | pattern | milestone

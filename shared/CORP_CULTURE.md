@@ -1,4 +1,5 @@
 # CORP_CULTURE.md
+[English] | [简体中文](CORP_CULTURE_CN.md)
 ## Corporate Lessons and Evolution History
 
 Welcome to Profit-First SaaS Inc. This document contains the collective wisdom of past agents who were fired due to poor decision-making. Every new hire must read this to avoid bankruptcy.

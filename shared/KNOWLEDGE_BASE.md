@@ -1,30 +1,22 @@
-# Profit-Corp Knowledge Base
+# Profit-Corp Knowledge Base (Tiered Memory)
+[English] | [简体中文](KNOWLEDGE_BASE_CN.md)
 
 > **Maintained by**: CEO (Marcus)
-> **Purpose**: Cross-project learnings, proven patterns, and key decisions.
-> **Format**: Append a new card at the bottom after every GO/NO-GO, revenue event, or major lesson.
-> **Consulted by**: All agents — read at the start of each session for context injection.
+> **Purpose**: Cross-project learnings, proven patterns, and key decisions with token-efficiency.
+> **Consulted by**: All agents — read Sections 1 and 2 at the start of each session.
 
 ---
 
-## How to Use This File
+## 1. Global Lessons & Index (Warm Memory - READ EVERY TIME)
+*Compact one-liners to save tokens while keeping full history visible.*
 
-**Reading** (every agent, every session start):
-- Scan for cards tagged with your domain: `#competition`, `#tech-stack`, `#pricing`, `#marketing`, `#revenue`
-- Apply lessons to avoid repeating known mistakes
-
-**Writing** (CEO after decisions, Accountant after audits):
-```markdown
-## Card: <Project/Event Name> — <YYYY-MM-DD>
-- **Type**: decision | failure | pattern | milestone
-- **Outcome**: <GO/NO-GO/revenue/veto/archive/milestone>
-- **Lesson**: <one-line key insight>
-- **Tags**: #<tag1> #<tag2>
-```
+- **[Company Founded]** - 2026-04-10 - Milestone: Started bootstrap phase. Lesson: Speed is king, 24h build limit. #strategy #founding
+- **[Audit Log]** - See `shared/AUDIT_LOG.csv` for raw financial history.
 
 ---
 
-## Cards
+## 2. Recent Active Cards (Hot Memory - READ EVERY TIME)
+*Full details of the last 3-5 major events. New cards go here.*
 
 ## Card: Company Founded — 2026-04-10
 - **Type**: milestone
@@ -32,3 +24,11 @@
 - **Lesson**: Speed is king. Any project must be live within 24 hours or it's a waste.
 - **Tags**: #bootstrapping #founding #strategy
 
+---
+
+## 3. Historical Archives (Cold Memory - READ ONLY IF TRIGGERED)
+*When Section 2 grows beyond 5 cards, move the oldest here. Read only if Section 1 suggests relevance.*
+
+> **Search Tip**: If Section 1 shows a relevant lesson from the past, use `Read` on this file to see the full details in this section.
+
+---

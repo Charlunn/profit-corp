@@ -1,4 +1,5 @@
 # Profit-Corp Architecture: OpenCLAW Native Integration Guide
+[English] | [简体中文](ARCHITECTURE_CN.md)
 
 > **Purpose**: This document answers the user's direct questions about OpenCLAW's
 > communication mechanisms, the default agent, and webchat routing. All analysis
@@ -79,6 +80,10 @@ curl -X POST http://127.0.0.1:18789/hooks/agent \
   -H "Authorization: Bearer $OPENCLAW_HOOKS_TOKEN" \
   -d '{"agentId":"ceo","message":"New project idea: [your idea here]"}'
 ```
+
+### 1.5 Audit Log (Financial Ledger)
+
+All financial activities (revenue, bounties, operational costs, token penalties) are appended to `shared/AUDIT_LOG.csv`. This provides the company with a transparent and traceable financial history for long-term ROI analysis of each agent.
 
 ---
 

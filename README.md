@@ -1,4 +1,5 @@
 # Profit-First SaaS Inc. 🚀
+[English] | [简体中文](README_CN.md)
 ### OpenCLAW-Native, Profit-Driven Multi-Agent Incubator
 
 Profit-Corp ships a complete, native OpenCLAW setup (no external bridges) with five agents: CEO, Scout, CMO, Architect, and Accountant.

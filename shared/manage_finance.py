@@ -6,7 +6,22 @@ from datetime import datetime
 # Relative path resolution for cross-platform deployment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(BASE_DIR, "LEDGER.json")
+AUDIT_LOG_PATH = os.path.join(BASE_DIR, "AUDIT_LOG.csv")
 CULTURE_PATH = os.path.join(BASE_DIR, "CORP_CULTURE.md")
+
+def log_event(event_type, agent_id, amount, reasoning):
+    """Logs financial events to a persistent CSV for long-term analysis."""
+    file_exists = os.path.exists(AUDIT_LOG_PATH)
+    try:
+        with open(AUDIT_LOG_PATH, 'a') as f:
+            if not file_exists:
+                f.write("timestamp,event_type,agent_id,amount,reasoning\n")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Basic CSV escaping: replace quotes with double quotes and wrap in quotes
+            clean_reason = f'"{reasoning.replace(\'"\', \'""\')}"'
+            f.write(f"{timestamp},{event_type},{agent_id},{amount},{clean_reason}\n")
+    except Exception as e:
+        print(f"Warning: Could not write to audit log: {e}")
 
 def load_ledger():
     if not os.path.exists(LEDGER_PATH):
@@ -83,6 +98,7 @@ def record_revenue(amount, source_agent, reasoning):
     print(f"💰 REVENUE RECORDED: +{amount} pts from {reasoning}")
     print(f"Treasury: +{treasury_share}, {source_agent} Bonus: +{agent_bonus}, Team Kickback: +{team_bonus}")
     save_ledger(ledger)
+    log_event("revenue", source_agent, amount, reasoning)
 
 def grant_bounty(amount, target_agent, task_description):
     """
@@ -100,6 +116,7 @@ def grant_bounty(amount, target_agent, task_description):
     ledger["agents"][target_agent]["points"] += amount
     print(f"🎯 BOUNTY AWARDED: {amount} pts to {target_agent} for '{task_description}'")
     save_ledger(ledger)
+    log_event("bounty", target_agent, -amount, task_description)
 
 def score_agent(target_id, score, reasoning):
     ledger = load_ledger()
@@ -121,6 +138,7 @@ def score_agent(target_id, score, reasoning):
     ledger["agents"][target_id]["points"] += change
     print(f"Scored {target_id} with {score}. Total Change: {change}. Reason: {reasoning}")
     save_ledger(ledger)
+    log_event("score", target_id, change, f"Score: {score}, Reason: {reasoning}")
 
 def log_token_usage(agent_id, input_tokens, output_tokens):
     ledger = load_ledger()
@@ -141,6 +159,7 @@ def log_token_usage(agent_id, input_tokens, output_tokens):
         ledger["agents"][agent_id]["points"] -= token_penalty
         ledger["treasury"] -= token_penalty
         print(f"Token penalty ({level}): -{token_penalty} pts")
+        log_event("token_penalty", agent_id, -token_penalty, f"Tokens: {total_tokens} ({level})")
 
     save_ledger(ledger)
 
@@ -158,6 +177,7 @@ def daily_audit():
         data["points"] -= cost
         ledger["treasury"] -= cost
         print(f"Agent {agent_id}: {data['points']} pts (Daily cost: -{cost})")
+        log_event("daily_cost", agent_id, -cost, "Daily audit operational cost")
 
         if data["points"] <= 0:
             print(f"!!! ALERT: Agent {agent_id} is BANKRUPT !!!")
