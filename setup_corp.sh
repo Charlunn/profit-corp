@@ -121,6 +121,17 @@ fi
 
 info "✓ Config written to $OPENCLAW_CONFIG"
 
+# ── Preflight: normalize config and ensure gateway availability ───────────────
+info "Running OpenCLAW config preflight..."
+openclaw doctor --fix >/dev/null 2>&1 || true
+
+OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
+if ! openclaw agents list >/dev/null 2>&1; then
+    warn "Gateway not reachable yet. Auto-starting gateway on port $OPENCLAW_PORT ..."
+    nohup openclaw gateway --port "$OPENCLAW_PORT" >/tmp/openclaw-gateway.log 2>&1 &
+    sleep 1
+fi
+
 # ── Remove legacy 'main' default agent ───────────────────────────────────────
 # OpenCLAW's single-agent mode creates a "main" workspace/agent by default.
 # Profit-corp uses CEO as the default; the 'main' agent must not exist or it
