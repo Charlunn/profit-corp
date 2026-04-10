@@ -21,10 +21,11 @@ The first ID in TELEGRAM_ALLOWED_USERS is treated as super_admin if no roles are
 explicitly configured in shared/rbac_config.json.
 """
 
+import asyncio
 import json
 import logging
 import os
-import subprocess
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -265,16 +266,26 @@ def format_ledger(ledger: dict) -> str:
     return "\n".join(lines)
 
 
-def run_finance_cmd(args: list[str]) -> str:
-    """Run manage_finance.py with the given arguments and return stdout."""
+async def run_finance_cmd(args: list[str]) -> str:
+    """Run manage_finance.py with the given arguments and return stdout.
+
+    Uses asyncio subprocess to avoid blocking the bot's event loop.
+    """
     script = str(BASE_DIR / "manage_finance.py")
-    result = subprocess.run(
-        ["python3", script] + args,
-        capture_output=True,
-        text=True,
-        timeout=30,
+    proc = await asyncio.create_subprocess_exec(
+        "python3",
+        script,
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
-    return (result.stdout or result.stderr or "（无输出）").strip()
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        return "（超时）"
+    return ((stdout or stderr or b"").decode().strip() or "（无输出）")
 
 
 # ─── Auth guard ───────────────────────────────────────────────────────────────
@@ -677,7 +688,7 @@ async def _handle_confirm(query, action: str, payload: str, context) -> None:
     if action == "report_revenue":
         amount, source = payload.split("|", 1)
         try:
-            output = run_finance_cmd(["revenue", amount, "telegram", source])
+            output = await run_finance_cmd(["revenue", amount, "telegram", source])
             ledger = load_ledger()
             text = (
                 "✅ *营收已记录！*\n\n"
@@ -690,7 +701,7 @@ async def _handle_confirm(query, action: str, payload: str, context) -> None:
 
     elif action == "daily_audit":
         try:
-            output = run_finance_cmd(["audit"])
+            output = await run_finance_cmd(["audit"])
             ledger = load_ledger()
             text = (
                 "🗓 *审计完成！*\n\n"
@@ -704,7 +715,7 @@ async def _handle_confirm(query, action: str, payload: str, context) -> None:
     elif action == "score_agent":
         agent, score_str, reason = payload.split("|", 2)
         try:
-            output = run_finance_cmd(["score", agent, score_str, reason])
+            output = await run_finance_cmd(["score", agent, score_str, reason])
             text = f"🎯 *评分已提交！*\n\n```\n{output}\n```" + tips_text()
         except Exception as exc:
             text = f"❌ 评分失败：{exc}"
@@ -713,7 +724,7 @@ async def _handle_confirm(query, action: str, payload: str, context) -> None:
     elif action == "bounty":
         amount, agent, task = payload.split("|", 2)
         try:
-            output = run_finance_cmd(["bounty", amount, agent, task])
+            output = await run_finance_cmd(["bounty", amount, agent, task])
             text = f"🎯 *奖金已发放！*\n\n```\n{output}\n```" + tips_text()
         except Exception as exc:
             text = f"❌ 奖金发放失败：{exc}"
@@ -780,7 +791,7 @@ async def _create_approval_request(
     }
 
     rbac = load_rbac_config()
-    super_admins: list[int] = list(rbac["roles"].get("super_admin", {}).get("users", []))
+    super_admins: list[int] = rbac["roles"].get("super_admin", {}).get("users", [])[:]
     ids = _allowed_ids()
     if ids:
         super_admins = list(set(super_admins + [ids[0]]))
@@ -1024,7 +1035,7 @@ async def handle_text(
 ) -> None:
     """Resolve bottom-keyboard shortcut aliases to their command handlers."""
     text = update.message.text
-    aliases: dict[str, any] = {
+    aliases: dict[str, Callable] = {
         "🚀 /新项目": cmd_new_project_start,
         "💰 /汇报营收": cmd_report_revenue_start,
         "📊 /团队状态": cmd_status,
@@ -1044,7 +1055,14 @@ async def handle_text(
 # ─── Bot Setup ────────────────────────────────────────────────────────────────
 
 async def post_init(application: Application) -> None:
-    """Register the bot's command list in the Telegram UI."""
+    """Register the bot's command list in the Telegram UI.
+
+    Telegram BotCommand names must be ASCII-only (letters, digits, underscores).
+    Chinese characters are therefore romanised to pinyin here.  The bottom
+    ReplyKeyboardMarkup and ConversationHandler entry points use the same
+    pinyin names, ensuring the Telegram "/" suggestion menu and the handlers
+    stay in sync while allowing Chinese labels in the keyboard button text.
+    """
     commands = [
         BotCommand("start", "🚀 启动指挥中心"),
         BotCommand("xin_xiang_mu", "🆕 新项目引导向导"),
