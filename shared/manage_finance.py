@@ -1,3 +1,4 @@
+import csv
 import json
 import sys
 import os
@@ -62,15 +63,14 @@ except ImportError:
 
 def log_event(event_type, agent_id, amount, reasoning):
     """Logs financial events to a persistent CSV for long-term analysis."""
-    file_exists = os.path.exists(AUDIT_LOG_PATH)
     try:
-        with open(AUDIT_LOG_PATH, 'a') as f:
-            if not file_exists:
-                f.write("timestamp,event_type,agent_id,amount,reasoning\n")
+        file_exists = os.path.exists(AUDIT_LOG_PATH)
+        with open(AUDIT_LOG_PATH, "a", newline="") as f:
+            writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+            if not file_exists or os.stat(AUDIT_LOG_PATH).st_size == 0:
+                writer.writerow(["timestamp", "event_type", "agent_id", "amount", "reasoning"])
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Basic CSV escaping: replace quotes with double quotes and wrap in quotes
-            clean_reason = f'"{reasoning.replace(\'"\', \'\\"\')}\"'
-            f.write(f"{timestamp},{event_type},{agent_id},{amount},{clean_reason}\n")
+            writer.writerow([timestamp, event_type, agent_id, amount, reasoning])
     except Exception as e:
         print(f"Warning: Could not write to audit log: {e}")
 
