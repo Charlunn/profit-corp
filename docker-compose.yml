@@ -1,0 +1,89 @@
+version: "3.9"
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Mode A — Standalone Docker deployment of OpenCLAW + profit-corp        ║
+# ║                                                                          ║
+# ║  Usage:                                                                  ║
+# ║    cp .env.example .env   # fill in your API keys and Telegram token     ║
+# ║    docker compose up -d                                                  ║
+# ║    docker compose run --rm openclaw-cli channels add \                  ║
+# ║      --channel telegram --token "$TELEGRAM_BOT_TOKEN"                   ║
+# ║    docker compose run --rm openclaw-cli cron add …  (or run setup_cron) ║
+# ║                                                                          ║
+# ║  Docs: https://docs.openclaw.ai/install/docker                          ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+services:
+  # ── OpenCLAW Gateway ──────────────────────────────────────────────────────
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: profit-corp-gateway
+    restart: unless-stopped
+
+    environment:
+      # ── LLM provider (OpenRouter free tier) ────────────────────────────
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # ── Telegram ───────────────────────────────────────────────────────
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_OWNER_ID=${TELEGRAM_OWNER_ID}
+      # ── Gateway auth ───────────────────────────────────────────────────
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      # ── Optional hook token ────────────────────────────────────────────
+      - OPENCLAW_HOOK_TOKEN=${OPENCLAW_HOOK_TOKEN:-}
+      # ── Node startup tuning for small VPS ────────────────────────────
+      - OPENCLAW_NO_RESPAWN=1
+      - NODE_COMPILE_CACHE=/var/tmp/openclaw-compile-cache
+      # ── Corp timezone for cron scheduling ─────────────────────────────
+      - CORP_TZ=${CORP_TZ:-UTC}
+
+    ports:
+      - "18789:18789"
+
+    volumes:
+      # OpenCLAW config + state (persistent across container restarts)
+      - openclaw-config:/home/node/.openclaw
+      # profit-corp repo mounted read-write so agents can write shared/ files
+      - .:/home/node/.openclaw/workspace/profit-corp:rw
+      # Individual agent workspaces surfaced under the openclaw workspace root
+      - ./workspaces/scout:/home/node/.openclaw/workspace/scout:rw
+      - ./workspaces/cmo:/home/node/.openclaw/workspace/cmo:rw
+      - ./workspaces/arch:/home/node/.openclaw/workspace/arch:rw
+      - ./workspaces/ceo:/home/node/.openclaw/workspace/ceo:rw
+      - ./workspaces/accountant:/home/node/.openclaw/workspace/accountant:rw
+      # Shared skills visible to all agents
+      - ./shared/skills:/home/node/.openclaw/skills:ro
+      # Archive directory (write-enabled for archiving completed projects)
+      - ./archives:/home/node/.openclaw/workspace/archives:rw
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── openclaw-cli helper (run one-off commands against the gateway) ─────────
+  # Example: docker compose run --rm openclaw-cli cron list
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: profit-corp-cli
+    network_mode: "service:openclaw-gateway"
+    profiles: ["cli"]
+    depends_on:
+      - openclaw-gateway
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - TELEGRAM_OWNER_ID=${TELEGRAM_OWNER_ID}
+      - CORP_TZ=${CORP_TZ:-UTC}
+    volumes:
+      - openclaw-config:/home/node/.openclaw
+      - .:/home/node/.openclaw/workspace/profit-corp:rw
+    # Default entrypoint is the openclaw CLI
+    entrypoint: ["openclaw"]
+    command: ["--help"]
+
+volumes:
+  openclaw-config:
+    # Named volume: survives docker compose down (data is NOT deleted).
+    # To wipe state entirely: docker volume rm profit-corp-openclaw-config
+    name: profit-corp-openclaw-config
