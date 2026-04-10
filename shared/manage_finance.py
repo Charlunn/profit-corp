@@ -187,7 +187,11 @@ def set_token_quota(agent_id: str, max_tokens: int) -> None:
     if agent_id not in agents:
         print(f"Error: Agent {agent_id} not found in corp_config.json")
         return
-    max_tokens = int(max_tokens)
+    try:
+        max_tokens = int(max_tokens)
+    except (ValueError, TypeError):
+        print(f"Error: max_tokens must be an integer, got: {max_tokens!r}")
+        return
     agents[agent_id].setdefault("token_quota", {})["max_tokens_per_run"] = max_tokens
     save_corp_config(config)
     print(f"🔧  Token quota for {agent_id} set to {max_tokens:,} tokens/run")
