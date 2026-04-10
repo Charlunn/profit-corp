@@ -1,15 +1,33 @@
 #!/bin/bash
 
-# Profit-First SaaS Inc. - Cloud/Local Deployment Script
-# -------------------------------------------------------
-# This is the LEGACY one-step setup for environments that already have
-# OpenCLAW installed. For a full native integration (cron, Telegram,
-# webchat routing, no default agent), use the new setup script instead:
+# =============================================================================
+# ⚠️  DEPRECATED — DO NOT USE FOR NEW DEPLOYMENTS
+# =============================================================================
+# This script is kept for historical reference only.
 #
-#   ./setup_corp.sh      ← recommended for existing OpenCLAW installs
-#   docker-compose up -d ← recommended for fresh cloud servers
+# It does NOT configure:
+#   - CEO as the default agent (main agent conflict)
+#   - Telegram channel bindings
+#   - Native cron scheduling
+#   - openclaw.json gateway configuration
+#   - RBAC sensitive-op gates
+#
+# Use one of the supported deployment methods instead:
+#
+#   ./setup_corp.sh      ← for existing OpenCLAW installations (recommended)
+#   docker-compose up -d ← for fresh cloud servers / Docker environments
 #
 # See ARCHITECTURE.md for the full OpenCLAW integration guide.
+# =============================================================================
+
+echo "⚠️  WARNING: deploy_corp.sh is DEPRECATED."
+echo "   Please use ./setup_corp.sh or docker-compose up -d instead."
+echo ""
+read -r -p "Continue anyway? [y/N] " ans
+if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+    echo "Aborted. Run ./setup_corp.sh for the recommended setup."
+    exit 0
+fi
 
 echo "🚀 Deploying Profit-First SaaS Inc..."
 
@@ -36,11 +54,11 @@ for agent in "${agents[@]}"; do
     echo "  ⚠ Could not register $agent — start the gateway first, or use setup_corp.sh"
 done
 
-# 3. Initialize Finance
-echo "--- Initializing Ledger ---"
-python3 "$CORP_ROOT/shared/manage_finance.py" audit
+# NOTE: Ledger audit (manage_finance.py audit) is intentionally NOT called here.
+# Running audit during deployment deducts 10 pts/agent from day-0 balances for no reason.
+# The audit is triggered automatically by the daily cron job and by Accountant.
 
-echo "✅ Deployment Complete."
+echo "✅ Deployment Complete (legacy mode)."
 echo ""
 echo "⚠️  For full OpenCLAW-native integration (Telegram, webchat, cron), run:"
 echo "   ./setup_corp.sh"

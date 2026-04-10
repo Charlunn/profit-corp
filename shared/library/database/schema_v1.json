@@ -1,0 +1,54 @@
+{
+  "_comment": "Generic SaaS schema for Profit-Corp micro-apps. All tables include saas_tag for RLS isolation within the shared Supabase project.",
+  "tables": {
+    "users": {
+      "columns": {
+        "id":         { "type": "uuid", "default": "auth.uid()", "primaryKey": true },
+        "email":      { "type": "text", "notNull": true, "unique": true },
+        "full_name":  { "type": "text" },
+        "avatar_url": { "type": "text" },
+        "saas_tag":   { "type": "text", "notNull": true, "_comment": "Identifies the owning app, e.g. 'invoicer_v1'" },
+        "created_at": { "type": "timestamptz", "default": "now()" },
+        "updated_at": { "type": "timestamptz", "default": "now()" }
+      },
+      "indexes": [
+        { "columns": ["saas_tag"] }
+      ]
+    },
+    "projects": {
+      "columns": {
+        "id":          { "type": "uuid", "default": "gen_random_uuid()", "primaryKey": true },
+        "owner_id":    { "type": "uuid", "references": "users.id", "onDelete": "CASCADE" },
+        "name":        { "type": "text", "notNull": true },
+        "description": { "type": "text" },
+        "status":      { "type": "text", "default": "'active'", "_comment": "active | archived | deleted" },
+        "metadata":    { "type": "jsonb", "default": "'{}'::jsonb" },
+        "saas_tag":    { "type": "text", "notNull": true },
+        "created_at":  { "type": "timestamptz", "default": "now()" },
+        "updated_at":  { "type": "timestamptz", "default": "now()" }
+      },
+      "indexes": [
+        { "columns": ["owner_id"] },
+        { "columns": ["saas_tag"] }
+      ]
+    },
+    "billing": {
+      "columns": {
+        "id":                   { "type": "uuid", "default": "gen_random_uuid()", "primaryKey": true },
+        "user_id":              { "type": "uuid", "references": "users.id", "onDelete": "CASCADE" },
+        "stripe_customer_id":   { "type": "text", "unique": true },
+        "stripe_subscription_id": { "type": "text", "unique": true },
+        "plan":                 { "type": "text", "default": "'free'", "_comment": "free | starter | pro | enterprise" },
+        "status":               { "type": "text", "default": "'inactive'", "_comment": "active | past_due | canceled | inactive" },
+        "current_period_end":   { "type": "timestamptz" },
+        "saas_tag":             { "type": "text", "notNull": true },
+        "created_at":           { "type": "timestamptz", "default": "now()" },
+        "updated_at":           { "type": "timestamptz", "default": "now()" }
+      },
+      "indexes": [
+        { "columns": ["stripe_customer_id"] },
+        { "columns": ["saas_tag"] }
+      ]
+    }
+  }
+}

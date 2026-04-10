@@ -1,13 +1,14 @@
 {
   "company_name": "Profit-First SaaS Inc.",
   "treasury": 500,
+  "maturity_level": "Bootstrapping",
+  "status": "growth",
   "last_updated": "2026-04-10",
   "agents": {
-    "scout": {"points": 100, "generation": 1},
-    "cmo": {"points": 100, "generation": 1},
-    "arch": {"points": 100, "generation": 1},
-    "ceo": {"points": 100, "generation": 1},
-    "accountant": {"points": 100, "generation": 1},
-    "dev": {"points": 100, "generation": 1}
+    "scout":      {"points": 100, "generation": 1},
+    "cmo":        {"points": 100, "generation": 1},
+    "arch":       {"points": 100, "generation": 1},
+    "ceo":        {"points": 100, "generation": 1},
+    "accountant": {"points": 100, "generation": 1}
   }
 }
