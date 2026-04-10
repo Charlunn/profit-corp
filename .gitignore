@@ -1,0 +1,19 @@
+# Environment variables (contains API keys and tokens)
+.env
+
+# Archives are stored locally; individual project folders are gitignored
+# but the directory itself is tracked via archives/.gitkeep
+archives/*/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node / npm
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

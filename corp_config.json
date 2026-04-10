@@ -2,24 +2,88 @@
   "project": "Profit-First SaaS Inc.",
   "agents": {
     "scout": {
-      "skills": ["blogwatcher", "xurl", "summarize"],
-      "workspace": "./workspaces/scout"
+      "skills": [
+        "blogwatcher",
+        "xurl",
+        "summarize"
+      ],
+      "workspace": "./workspaces/scout",
+      "model_interface": {
+        "current": "openrouter/deepseek/deepseek-r1-0528:free",
+        "upgrade_threshold_pts": 5000,
+        "upgrade_to": null
+      },
+      "token_quota": {
+        "max_tokens_per_run": 50000,
+        "controlled_by": "accountant"
+      }
     },
     "cmo": {
-      "skills": ["github", "gh-issues", "blogwatcher"],
-      "workspace": "./workspaces/cmo"
+      "skills": [
+        "github",
+        "gh-issues",
+        "blogwatcher"
+      ],
+      "workspace": "./workspaces/cmo",
+      "model_interface": {
+        "current": "openrouter/deepseek/deepseek-r1-0528:free",
+        "upgrade_threshold_pts": 5000,
+        "upgrade_to": null
+      },
+      "token_quota": {
+        "max_tokens_per_run": 50000,
+        "controlled_by": "accountant"
+      }
     },
     "arch": {
-      "skills": ["coding-agent", "summarize", "model-usage"],
-      "workspace": "./workspaces/arch"
+      "skills": [
+        "coding-agent",
+        "summarize",
+        "model-usage"
+      ],
+      "workspace": "./workspaces/arch",
+      "model_interface": {
+        "current": "openrouter/deepseek/deepseek-r1-0528:free",
+        "upgrade_threshold_pts": 5000,
+        "upgrade_to": null
+      },
+      "token_quota": {
+        "max_tokens_per_run": 80000,
+        "controlled_by": "accountant"
+      }
     },
     "ceo": {
-      "skills": ["summarize", "github"],
-      "workspace": "./workspaces/ceo"
+      "skills": [
+        "summarize",
+        "github"
+      ],
+      "workspace": "./workspaces/ceo",
+      "model_interface": {
+        "current": "openrouter/deepseek/deepseek-r1-0528:free",
+        "upgrade_threshold_pts": 5000,
+        "upgrade_to": null
+      },
+      "token_quota": {
+        "max_tokens_per_run": 40000,
+        "controlled_by": "accountant"
+      }
     },
     "accountant": {
-      "skills": ["model-usage", "healthcheck", "session-logs"],
-      "workspace": "./workspaces/accountant"
+      "skills": [
+        "model-usage",
+        "healthcheck",
+        "session-logs"
+      ],
+      "workspace": "./workspaces/accountant",
+      "model_interface": {
+        "current": "openrouter/deepseek/deepseek-r1-0528:free",
+        "upgrade_threshold_pts": 5000,
+        "upgrade_to": null
+      },
+      "token_quota": {
+        "max_tokens_per_run": 30000,
+        "controlled_by": "self"
+      }
     }
   }
 }

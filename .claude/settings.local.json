@@ -2,6 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(openclaw agents:*)",
+      "Bash(openclaw cron:*)",
+      "Bash(openclaw config:*)",
+      "Bash(openclaw gateway:*)",
+      "Bash(openclaw channels:*)",
       "Bash(pnpm openclaw:*)",
       "Bash(node openclaw.mjs agents add scout --workspace \"C:/Users/42236/profit-corp/workspaces/scout\" --non-interactive)",
       "Bash(node openclaw.mjs agents add cmo --workspace \"C:/Users/42236/profit-corp/workspaces/cmo\" --non-interactive)",
@@ -16,7 +20,11 @@
       "Bash(node openclaw.mjs doctor --fix)",
       "Bash(curl -s http://127.0.0.1:11434/api/tags)",
       "Bash(node openclaw.mjs gateway run --port 18789 --local)",
-      "Bash(node openclaw.mjs gateway run --help)"
+      "Bash(node openclaw.mjs gateway run --help)",
+      "Bash(python3 shared/manage_finance.py:*)",
+      "Bash(python3 shared/context_manager.py:*)",
+      "Bash(bash setup_cron.sh:*)",
+      "Bash(bash install_extension.sh:*)"
     ]
   }
 }
