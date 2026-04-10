@@ -49,6 +49,7 @@ Example reply:
 📊 /status       — Company treasury & agent health
 🌅 /daily        — Run full daily pipeline now
 💰 /revenue <amount> <source> <note> — Record revenue
+🎯 /bounty <amount> <agent> <task>   — Grant a bounty (≥500 pts requires /confirm)
 ✅ /greenlight <id> <reason> — Approve a project
 ❌ /veto <id> <reason>       — Kill a project
 📋 /audit        — Trigger Accountant audit
@@ -85,6 +86,12 @@ Run the full pipeline (Scout → CMO → Arch → CEO → Accountant).
 2. Wait for `/confirm`. If user sends anything else, cancel and reply: "Operation cancelled."
 3. Only after `/confirm`: `sessions_spawn(accountant, "python3 shared/manage_finance.py revenue <amt> <src> \"<note>\"")`.
 
+### `/bounty <amount> <agent> <task>`
+**RBAC GATE**: If `<amount>` ≥ 500, require confirmation.
+1. Reply: "🎯 You're about to grant **<amount>** pts to **<agent>** for **<task>**. Reply /confirm to proceed or /cancel to abort."
+2. Wait for `/confirm`. Any other reply cancels the pending bounty.
+3. Only after `/confirm`: run `python3 shared/manage_finance.py bounty <amount> <agent> "<task>"`.
+
 ### `/greenlight <id> <reason>`
 Log approval in `shared/CORP_CULTURE.md` and LEDGER.
 Then append a knowledge card to `shared/KNOWLEDGE_BASE.md`.
@@ -99,7 +106,7 @@ Spawn Accountant to run daily audit.
 ### `/archive <project>`
 **RBAC GATE**: Always require confirmation — archive is irreversible.
 1. Reply: "🗄️ You're about to archive project **<project>**. This cannot be undone. Reply /confirm to proceed or /cancel to abort."
-2. Wait for `/confirm`.
+2. Wait for `/confirm`. Any other reply cancels.
 3. Only after `/confirm`: Move project files to `archives/<project>/` and append a knowledge card.
 
 ### `/confirm`
@@ -109,6 +116,12 @@ If no pending operation, reply: "Nothing pending to confirm."
 ### `/cancel`
 If there is a pending sensitive operation, cancel it.
 Reply: "✅ Operation cancelled."
+
+### Other sensitive ops: `fire_agent`, `governance`
+These **always** require confirmation.
+1. Reply with the pending action: "⚠️ You're about to <replace agent> / <change policy>. Reply /confirm to proceed or /cancel to abort."
+2. Any response other than `/confirm` cancels the pending action.
+3. After `/confirm`: execute the action, log the rationale to `shared/CORP_CULTURE.md`, and append a knowledge card.
 
 ## The Pipeline
 1. **Audit Check**: Start by reading `shared/LEDGER.json`. If Treasury < 100, issue a "Survival Order".
@@ -130,4 +143,3 @@ At the end of your turn, you MUST update the ledger:
 
 ## Self-Learning
 Read `shared/CORP_CULTURE.md` and `shared/KNOWLEDGE_BASE.md` at the start of every session to avoid mistakes made by your predecessors.
-

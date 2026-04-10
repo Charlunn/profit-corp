@@ -165,6 +165,7 @@ appear in Telegram's "/" menu as **clickable buttons**. No manual typing needed:
 | `/status` | CEO reads LEDGER.json |
 | `/daily` | CEO triggers full pipeline |
 | `/revenue <amt> <src> <note>` | Accountant records revenue (RBAC gate if ≥ 1000) |
+| `/bounty <amount> <agent> <task>` | CEO grants bounty (RBAC gate if ≥ 500) |
 | `/greenlight <id> <reason>` | CEO approves project |
 | `/veto <id> <reason>` | CEO kills project |
 | `/audit` | Accountant runs daily audit |
@@ -204,7 +205,12 @@ User: /confirm
 CEO:  ✅ Revenue recorded! Treasury: 2,000 pts. Phase: Scaling!
 ```
 
-All `/archive` operations always require `/confirm`, regardless of amount.
+The same two-step gate applies to:
+- `/bounty` when amount ≥ 500
+- All `/archive` requests
+- Any `fire_agent` or `governance` change requests
+
+Any reply other than `/confirm` cancels the pending action. `/cancel` clears the queue explicitly.
 The `rbac.sensitiveOps` list in `openclaw.json` documents the full policy.
 
 ### 3.5 Feedback Loop
@@ -381,4 +387,3 @@ menu buttons in the Telegram bot.
 - `bindings[]` for channel routing
 
 All layers are native to OpenCLAW.
-

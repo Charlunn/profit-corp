@@ -110,6 +110,7 @@
         { command: "status",      description: "📊 Get company treasury & agent status" },
         { command: "daily",       description: "🌅 Run the full daily pipeline now" },
         { command: "revenue",     description: "💰 Record revenue: /revenue <amount> <source> <note>" },
+        { command: "bounty",      description: "🎯 Grant bounty: /bounty <amount> <agent> <task>" },
         { command: "greenlight",  description: "✅ Greenlight a project: /greenlight <id> <reason>" },
         { command: "veto",        description: "❌ Veto a project: /veto <id> <reason>" },
         { command: "audit",       description: "📋 Trigger Accountant daily audit" },
