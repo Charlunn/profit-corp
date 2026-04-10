@@ -3,23 +3,65 @@
   "agents": {
     "scout": {
       "skills": ["blogwatcher", "xurl", "summarize"],
-      "workspace": "./workspaces/scout"
+      "workspace": "./workspaces/scout",
+      "model_interface": {
+        "current": "openrouter/default",
+        "fallback": null,
+        "_note": "Reserved for future model-switching by Accountant when treasury permits."
+      }
     },
     "cmo": {
       "skills": ["github", "gh-issues", "blogwatcher"],
-      "workspace": "./workspaces/cmo"
+      "workspace": "./workspaces/cmo",
+      "model_interface": {
+        "current": "openrouter/default",
+        "fallback": null,
+        "_note": "Reserved for future model-switching by Accountant when treasury permits."
+      }
     },
     "arch": {
       "skills": ["coding-agent", "summarize", "model-usage"],
-      "workspace": "./workspaces/arch"
+      "workspace": "./workspaces/arch",
+      "model_interface": {
+        "current": "openrouter/default",
+        "fallback": null,
+        "_note": "Reserved for future model-switching by Accountant when treasury permits."
+      }
     },
     "ceo": {
       "skills": ["summarize", "github"],
-      "workspace": "./workspaces/ceo"
+      "workspace": "./workspaces/ceo",
+      "model_interface": {
+        "current": "openrouter/default",
+        "fallback": null,
+        "_note": "Reserved for future model-switching by Accountant when treasury permits."
+      }
     },
     "accountant": {
       "skills": ["model-usage", "healthcheck", "session-logs"],
-      "workspace": "./workspaces/accountant"
+      "workspace": "./workspaces/accountant",
+      "model_interface": {
+        "current": "openrouter/default",
+        "fallback": null,
+        "_note": "Reserved for future model-switching by Accountant when treasury permits."
+      }
     }
+  },
+  "telegram_bot": {
+    "_comment": "Set TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_USERS env vars, then run: python3 shared/telegram_bot.py",
+    "enabled": true,
+    "rbac_config": "./shared/rbac_config.json",
+    "features": {
+      "interactive_menus": true,
+      "new_project_wizard": true,
+      "revenue_wizard": true,
+      "daily_tips": true,
+      "approval_flow": true
+    }
+  },
+  "governance": {
+    "rbac_config": "./shared/rbac_config.json",
+    "sensitive_ops_require_confirmation": true,
+    "approval_ops_require_super_admin": true
   }
 }
