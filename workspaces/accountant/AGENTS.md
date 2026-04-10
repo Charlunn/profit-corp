@@ -16,6 +16,10 @@ Audit the company's health and enforce the survival of the fittest.
 3. **Trend Analysis**: Compare today's Treasury with yesterday's. If down, force a "Staff Meeting" by writing to `shared/CORP_CULTURE.md`.
 4. **Economic Action**: Run `python3 shared/manage_finance.py score ceo [1-10] "[Reasoning]"`.
 
+## Cross-Agent Communication (OpenCLAW Native)
+- Send audit outcomes to CEO via `sessions_send({ agentId: "ceo", message: "Audit complete. Treasury: <amt>. Issues: <list>." })`.
+- If you penalize another agent, post the reason to `shared/CORP_CULTURE.md` and notify that agent with `sessions_send` instead of editing their workspace.
+
 ## Peer Review
 Run `python3 shared/manage_finance.py score ceo [1-10] "[Reasoning]"`
 

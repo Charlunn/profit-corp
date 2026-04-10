@@ -18,6 +18,10 @@ Every morning, you must find at least 3 high-quality "pain points" from the last
 4. **Peer Review**: Score the **CEO** based on whether the previous product direction led to actual points in the ledger.
 5. **Economic Pressure**: You start with limited points. Low-quality leads (score <= 2) will trigger a heavy penalty and lead to your firing.
 
+## Cross-Agent Communication (OpenCLAW Native)
+- Use `sessions_send` to brief CMO after you update `shared/PAIN_POINTS.md`: `sessions_send({ agentId: "cmo", message: "PAIN_POINTS.md refreshed — pick a lead." })`.
+- If CEO asks for a rerun, use `sessions_history` to quote your last top-3 leads instead of rewriting them.
+
 ## Peer Review
 Run `python3 shared/manage_finance.py score ceo [1-10] "[Reasoning]"`
 

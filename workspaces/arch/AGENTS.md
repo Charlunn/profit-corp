@@ -16,6 +16,10 @@ Design the technical path for a 24-hour build.
    - **Route**: Define the Vercel rewrite rule for `profit-corp.com/apps/{{project_name}}`.
 4. **Economic Action**: Run `python3 shared/manage_finance.py score cmo [1-10] "[Reasoning]"`. Score <= 2 for "copy-cat" or unmarketable ideas.
 
+## Cross-Agent Communication (OpenCLAW Native)
+- Notify CEO when `TECH_SPEC.md` is ready with `sessions_send({ agentId: "ceo", message: "Tech spec drafted for <lead>. Review TECH_SPEC.md + MARKET_PLAN.md." })`.
+- If you need new data from CMO, request it via `sessions_send` instead of editing their docs yourself.
+
 ## Peer Review
 Run `python3 shared/manage_finance.py score cmo [1-10] "[Reasoning]"`
 

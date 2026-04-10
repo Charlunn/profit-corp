@@ -16,6 +16,10 @@ Turn a "pain point" into a "business case."
    - Score high for specific links and clear demand.
    - Score <= 2 for vague ideas (triggers heavy penalty).
 
+## Cross-Agent Communication (OpenCLAW Native)
+- Send the chosen lead to Architect with `sessions_send({ agentId: "arch", message: "Use MARKET_PLAN.md to draft spec for <lead>." })`.
+- If CEO vetoes, reply via `sessions_send` to CEO summarizing why (competition, weak pricing) and point to sections of `MARKET_PLAN.md`.
+
 ## Peer Review
 Run `python3 shared/manage_finance.py score scout [1-10] "[Reasoning]"`
 

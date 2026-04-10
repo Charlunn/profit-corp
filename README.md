@@ -1,81 +1,66 @@
 # Profit-First SaaS Inc. 🚀
-### A Self-Evolving, Profit-Driven Multi-Agent SaaS Incubator
+### OpenCLAW-Native, Profit-Driven Multi-Agent Incubator
 
-Profit-First SaaS Inc. is an autonomous company structure built on top of [OpenClaw](https://github.com/anthropics/openclaw). It consists of 5 specialized agents working in a closed-loop economic system to identify, design, and manage micro-SaaS projects with a "zero-cost" mindset.
-
----
-
-## 🏢 Company Structure
-
-| Role | Responsibility | Key Skills |
-| :--- | :--- | :--- |
-| **CEO** | Final decision making, pivot/kill strategy, staff management. | `summarize`, `github` |
-| **Scout** | Identifying real-world pain points with monetization potential. | `blogwatcher`, `xurl`, `summarize` |
-| **CMO** | Market analysis, competitive audit, pricing strategy. | `github`, `gh-issues`, `blogwatcher` |
-| **Architect** | Lean system design, shared-backend strategy, MVP spec. | `coding-agent`, `summarize`, `model-usage` |
-| **Accountant** | Financial auditing, token cost tracking, bankruptcy enforcement. | `model-usage`, `healthcheck`, `session-logs` |
+Profit-Corp ships a complete, native OpenCLAW setup (no external bridges) with five agents: CEO, Scout, CMO, Architect, and Accountant.
 
 ---
 
-## 💰 Economic Engine (The Ledger)
-
-The company operates under a strict points-based "Physics Engine" defined in `shared/manage_finance.py`:
-
-*   **Bootstrapping Phase**: Treasury < 1,000 pts. Extreme token conservation. Only "Lean" projects allowed.
-*   **Scaling Phase**: 1,000 - 10,000 pts. Balanced growth and efficiency.
-*   **Unicorn Phase**: > 10,000 pts. High-performance reasoning enabled. Strategic dominance.
-*   **Survival Mode**: Triggered if Treasury < 100. Maintenance costs are halved, but capability is limited.
-*   **Bankruptcy**: If an agent hits 0 points, they are flagged for a "Reset Ritual" (Post-Mortem).
+## What This Repo Includes
+- `openclaw.json` template: multi-agent config, CEO as default (no legacy `main`), Telegram + WebChat bindings, native cron enabled.
+- Dual deployment: `setup_corp.sh` for existing OpenCLAW installs, `docker-compose.yml` + `Dockerfile` for full-stack containers.
+- Updated one-click scripts: `deploy_corp.sh` / `.bat` use `openclaw agents add` instead of legacy commands.
+- Workspace playbooks in `workspaces/*/AGENTS.md` and shared ledger logic in `shared/manage_finance.py`.
+- Detailed design notes in `ARCHITECTURE.md` (routing, default-agent safety, webchat binding).
 
 ---
 
-## 🏗️ Architectural Constraints
-
-To maintain extreme lean operations, the **Architect** and **CEO** enforce:
-1.  **Shared Backend**: All SaaS projects MUST share a single Supabase project (Isolated via Row Level Security & `saas_tag`).
-2.  **Unified Domain**: All apps are served via Vercel rewrites: `profit-corp.com/apps/{{project_id}}`.
-3.  **Zero-Cost First**: Priority is given to tools that fit within free tiers or student packs.
+## Communication & Routing (Native)
+- **Default agent:** CEO is explicitly `default: true`; there is no `main` workspace, so unmatched input always lands on CEO.
+- **Bindings:** Telegram, WebChat, and webhooks all bind to CEO via `bindings[]` in `openclaw.json`. Adjust there if you want channel-specific routing.
+- **Agent-to-agent:** Use OpenCLAW tools (`sessions_spawn`, `sessions_send`, `sessions_history`) for delegation and follow-ups—no copy/paste relays.
+- **WebChat:** Control UI opens on CEO by default; you can switch agent sessions in the sidebar if you bind others.
+- **Cron:** Native scheduler is enabled (stored in `~/.openclaw/cron/jobs.json`). Setup scripts register the daily pipeline at 08:00 in your timezone.
 
 ---
 
-## 🚀 Deployment
-
-### 1. Prerequisites
-- [OpenClaw](https://github.com/anthropics/openclaw) core installed in the parent directory.
-- Node.js & Python 3.
-- Access to an LLM provider (Ollama for local, or Cloud API for server).
-
-### 2. Setup
-Clone this folder next to your `openclaw` directory and run:
-
-**Linux/Mac:**
+## Deployment Options
+**Mode A: Existing OpenCLAW installation (recommended for local)**
 ```bash
-chmod +x deploy_corp.sh
-./deploy_corp.sh
+cp .env.example .env    # fill TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, OPENCLAW_HOOKS_TOKEN
+./setup_corp.sh         # writes ~/.openclaw/openclaw.json, registers agents + cron
 ```
 
-**Windows:**
-```batch
-deploy_corp.bat
+**Mode B: Full Docker stack**
+```bash
+cp .env.example .env
+docker-compose up -d    # builds gateway image, mounts workspaces + ledger volumes
+docker-compose logs -f openclaw
 ```
 
 ---
 
-## 🔄 The Pipeline (Daily Workflow)
-
-1.  **Scout**: `node openclaw.mjs agent run scout "Scan for SaaS leads"`
-2.  **CMO**: `node openclaw.mjs agent run cmo "Pick lead and design market plan"`
-3.  **Arch**: `node openclaw.mjs agent run arch "Draft tech spec for the market plan"`
-4.  **CEO**: `node openclaw.mjs agent run ceo "Decide to Greenlight or Veto"`
-5.  **Audit**: `node openclaw.mjs agent run accountant "Perform daily audit"`
+## Daily Automation & Manual Runs
+- Cron job (registered by `setup_corp.sh`): isolated CEO session triggers Scout → CMO → Arch → CEO decision → Accountant audit, then replies via Telegram if a chat ID is set.
+- Trigger manually:
+  - `openclaw cron run "Daily SaaS Incubator"` (CLI)
+  - or use the Control UI at `http://127.0.0.1:18789`
 
 ---
 
-## 📂 Directory Map
-*   `corp_config.json`: Master configuration for the local company.
-*   `shared/`: Financial engine, Ledger, and standardized communication templates.
-*   `workspaces/`: Individual persistent memories and data for each agent.
-*   `deploy_corp.sh/bat`: One-click setup for new environments.
+## Economic Engine (Ledger)
+`shared/manage_finance.py` enforces phases and scores:
+- Bootstrapping < 1,000 pts; Scaling 1,000–10,000; Unicorn > 10,000; Survival < 100 with penalties; Bankruptcy at 0.
+- Agents must record actions via `python3 shared/manage_finance.py <action>`; see `shared/TEMPLATES.md` for writing outputs.
+
+---
+
+## Directory Map
+- `openclaw.json`: OpenCLAW agent, binding, and cron configuration.
+- `setup_corp.sh`: Install config + agents + cron for existing OpenCLAW.
+- `docker-compose.yml` / `Dockerfile` / `docker-entrypoint.sh`: Containerized gateway.
+- `deploy_corp.sh` / `deploy_corp.bat`: Legacy quickstart (kept for compatibility).
+- `shared/`: Ledger, templates, cultural memory.
+- `workspaces/<agent>/`: Agent-specific instructions and memory.
 
 ---
 
