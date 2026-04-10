@@ -14,7 +14,7 @@
         "heartbeat": {
           "every": "4h",
           "isolatedSession": true,
-          "message": "Run company health check per HEARTBEAT.md: read shared/LEDGER.json, check treasury thresholds and agent points. Send Telegram alert if treasury < 150 or any agent point total <= 0. If all agents > 80 pts and treasury > 300, no action needed."
+          "prompt": "Run company health check per HEARTBEAT.md: read shared/LEDGER.json, check treasury thresholds and agent points. Send Telegram alert if treasury < 150 or any agent point total <= 0. If all agents > 80 pts and treasury > 300, no action needed."
         }
       },
       {
@@ -115,7 +115,7 @@
 
   "hooks": {
     "enabled": true,
-    "token": { "source": "env", "provider": "default", "id": "OPENCLAW_HOOKS_TOKEN" },
+    "token": "${OPENCLAW_HOOKS_TOKEN}",
     "path": "/hooks",
     "allowedAgentIds": ["ceo", "scout", "cmo", "arch", "accountant"]
   },
@@ -133,7 +133,8 @@
     "port": 18789,
     "bind": "127.0.0.1",
     "auth": {
-      "mode": "shared-secret"
+      "mode": "token",
+      "token": "${OPENCLAW_HOOKS_TOKEN}"
     },
     "channelHealthCheckMinutes": 5,
     "channelStaleEventThresholdMinutes": 30,
