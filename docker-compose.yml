@@ -1,0 +1,79 @@
+# =============================================================================
+# Profit-Corp Full-Stack Docker Deployment
+# =============================================================================
+# Includes: OpenCLAW Gateway + profit-corp config (mounted as volume)
+# No separate Telegram bridge needed — OpenCLAW handles it natively.
+#
+# Usage:
+#   cp .env.example .env          # fill in your tokens
+#   docker-compose up -d
+#   docker-compose logs -f openclaw
+#
+# First-time Telegram pairing:
+#   docker-compose exec openclaw openclaw pairing list telegram
+#   docker-compose exec openclaw openclaw pairing approve telegram <CODE>
+#
+# View agent bindings:
+#   docker-compose exec openclaw openclaw agents list --bindings
+#
+# Run the pipeline manually:
+#   docker-compose exec openclaw openclaw cron run "Daily SaaS Incubator"
+# =============================================================================
+
+version: "3.9"
+
+services:
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: profit-corp-gateway
+    restart: unless-stopped
+
+    ports:
+      - "18789:18789"    # OpenCLAW Control UI + WebSocket gateway
+
+    env_file:
+      - .env
+
+    environment:
+      # OpenCLAW reads ~/.openclaw by default; we mount it as a volume below.
+      OPENCLAW_STATE_DIR: /home/openclaw/.openclaw
+      PROFIT_CORP_ROOT: /home/openclaw/profit-corp
+      # Timezone for the daily 08:00 cron job (IANA format)
+      CORP_TIMEZONE: "${CORP_TIMEZONE:-UTC}"
+
+    volumes:
+      # ── Persistent state (sessions, cron jobs, credentials) ───────────────
+      - openclaw-state:/home/openclaw/.openclaw
+
+      # ── Corp workspace (workspaces, shared/, LEDGER.json) ─────────────────
+      # Mounted read-write so agents can write PAIN_POINTS.md, TECH_SPEC.md, etc.
+      - ./workspaces:/home/openclaw/profit-corp/workspaces
+      - ./shared:/home/openclaw/profit-corp/shared
+
+      # ── Project archives ──────────────────────────────────────────────────
+      - ./archives:/home/openclaw/profit-corp/archives
+
+    # Health check — gateway must be responding before we consider it healthy
+    healthcheck:
+      test: ["CMD", "openclaw", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+    # Low-level limits for lean cloud deployment
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "2g"
+
+volumes:
+  openclaw-state:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${OPENCLAW_STATE_HOST_PATH:-./.openclaw-state}"

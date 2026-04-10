@@ -1,0 +1,23 @@
+# Environment secrets — never commit these
+.env
+.env.local
+.env.production
+
+# Docker runtime state
+.openclaw-state/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Node
+node_modules/
+
+# Generated project artifacts (archived by agents at runtime)
+archives/
+
+# OS
+.DS_Store
+Thumbs.db

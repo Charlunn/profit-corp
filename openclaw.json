@@ -1,0 +1,194 @@
+// Profit-Corp OpenCLAW Configuration
+// Place this file at: ~/.openclaw/openclaw.json
+// Docs: https://docs.openclaw.ai/gateway/configuration
+//
+// This config turns OpenCLAW into the exclusive office for Profit-First SaaS Inc.
+// The default "main" agent is REPLACED by the org hierarchy below.
+// All WebChat + Telegram input is routed through the CEO dispatcher.
+// The legacy "main" workspace is intentionally omitted — only corp agents exist.
+
+{
+  // ──────────────────────────────────────────────────────────────
+  // AGENT DEFINITIONS
+  // Each entry is a fully isolated agent: workspace + sessions + auth.
+  // "default: true" on CEO means unmatched channels land here (webchat, etc.)
+  // ──────────────────────────────────────────────────────────────
+  agents: {
+    defaults: {
+      // All agents share the profit-corp workspace root but each has its own sub-dir.
+      // Override per agent below. Each agent workspace contains AGENTS.md, SOUL.md, etc.
+      skipBootstrap: true, // workspaces are pre-seeded; skip first-run ritual
+      contextInjection: "continuation-skip",
+    },
+    list: [
+      {
+        id: "ceo",
+        name: "Marcus (CEO)",
+        default: true, // ← webchat + unmatched channels route here; NO "main" agent needed
+        workspace: "PROFIT_CORP_ROOT/workspaces/ceo", // replace PROFIT_CORP_ROOT at setup time
+        skills: ["summarize", "github"],
+        heartbeat: {
+          // CEO receives a heartbeat so it can monitor company health proactively.
+          // Uses isolated sessions to keep token cost low (~2-5K instead of ~100K).
+          every: "4h",
+          isolatedSession: true,
+          message: "Run a quick company health check. Read LEDGER.json and report treasury status.",
+        },
+      },
+      {
+        id: "scout",
+        name: "Alex (Scout)",
+        workspace: "PROFIT_CORP_ROOT/workspaces/scout",
+        skills: ["blogwatcher", "xurl", "summarize"],
+      },
+      {
+        id: "cmo",
+        name: "Jordan (CMO)",
+        workspace: "PROFIT_CORP_ROOT/workspaces/cmo",
+        skills: ["github", "gh-issues", "blogwatcher"],
+      },
+      {
+        id: "arch",
+        name: "Sam (Architect)",
+        workspace: "PROFIT_CORP_ROOT/workspaces/arch",
+        skills: ["coding-agent", "summarize", "model-usage"],
+      },
+      {
+        id: "accountant",
+        name: "Taylor (Accountant)",
+        workspace: "PROFIT_CORP_ROOT/workspaces/accountant",
+        skills: ["model-usage", "healthcheck", "session-logs"],
+      },
+    ],
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // CHANNEL BINDINGS
+  // Route inbound messages to specific agents.
+  // Precedence: most-specific first (peer > accountId > channel > default).
+  // CEO is the "dispatcher" for all external input.
+  // Internal agent-to-agent calls use sessions_spawn/sessions_send natively.
+  // ──────────────────────────────────────────────────────────────
+  bindings: [
+    // Telegram → CEO (single bot; CEO dispatches to sub-agents as needed)
+    {
+      agentId: "ceo",
+      match: { channel: "telegram" },
+    },
+    // WebChat (Control UI) → CEO
+    {
+      agentId: "ceo",
+      match: { channel: "webchat" },
+    },
+    // Webhook triggers → CEO (for /hooks/agent calls without explicit agentId)
+    {
+      agentId: "ceo",
+      match: { channel: "webhook" },
+    },
+  ],
+
+  // ──────────────────────────────────────────────────────────────
+  // TELEGRAM CHANNEL
+  // One bot token → CEO dispatcher. All commands go through CEO.
+  // CEO can use sessions_spawn to spawn Scout/CMO/Arch/Accountant as needed.
+  // ──────────────────────────────────────────────────────────────
+  channels: {
+    telegram: {
+      enabled: true,
+      // Set your bot token here or export TELEGRAM_BOT_TOKEN=... in .env
+      botToken: { source: "env", provider: "default", id: "TELEGRAM_BOT_TOKEN" },
+      dmPolicy: "allowlist",
+      // Add your Telegram numeric user ID here. Find it via: openclaw logs --follow (read from.id)
+      // Or: curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
+      allowFrom: [],
+      streaming: "partial",
+      // Custom commands appear in the Telegram bot menu (tap "/" to see them)
+      customCommands: [
+        { command: "new_project", description: "🚀 Start a new SaaS project with Scout + CMO" },
+        { command: "status", description: "📊 Get company treasury & agent status" },
+        { command: "daily", description: "🌅 Run the full daily pipeline now" },
+        { command: "revenue", description: "💰 Record revenue: /revenue <amount> <source> <note>" },
+        { command: "greenlight", description: "✅ Greenlight a project: /greenlight <id> <reason>" },
+        { command: "veto", description: "❌ Veto a project: /veto <id> <reason>" },
+        { command: "audit", description: "📋 Trigger Accountant daily audit" },
+        { command: "archive", description: "🗄️ Archive completed project: /archive <project_name>" },
+      ],
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // AGENT-TO-AGENT COMMUNICATION
+  // OpenCLAW native tool: sessions_spawn / sessions_send
+  // CEO can spawn Scout, CMO, Arch, Accountant sessions inline.
+  // Enable here; configure per-agent allowlists in agents.list[].tools.
+  // ──────────────────────────────────────────────────────────────
+  tools: {
+    agentToAgent: {
+      enabled: true,
+      // Allow all corp agents to communicate with each other
+      allow: ["ceo", "scout", "cmo", "arch", "accountant"],
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // NATIVE SCHEDULED TASKS (CRON)
+  // OpenCLAW's built-in scheduler replaces external cron/systemd timers.
+  // Jobs persist at ~/.openclaw/cron/jobs.json — survive gateway restarts.
+  // Add/edit jobs via CLI: openclaw cron add / openclaw cron edit
+  // ──────────────────────────────────────────────────────────────
+  cron: {
+    enabled: true,
+    maxConcurrentRuns: 2,
+    retry: {
+      maxAttempts: 3,
+      backoffMs: [60000, 120000, 300000],
+      retryOn: ["rate_limit", "overloaded", "network", "server_error"],
+    },
+    sessionRetention: "48h",
+    runLog: { maxBytes: "2mb", keepLines: 2000 },
+    // Failure alerts → send to CEO's Telegram session
+    failureAlert: { enabled: true },
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // WEBHOOK / HTTP HOOKS
+  // Allows external systems (Telegram webhooks, CI, etc.) to trigger agents.
+  // Token must be set before enabling in production.
+  // ──────────────────────────────────────────────────────────────
+  hooks: {
+    enabled: true,
+    // Replace with a strong secret, e.g.: openssl rand -hex 32
+    token: { source: "env", provider: "default", id: "OPENCLAW_HOOKS_TOKEN" },
+    path: "/hooks",
+    // Only allow routing to corp agents
+    allowedAgentIds: ["ceo", "scout", "cmo", "arch", "accountant"],
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // SESSION MANAGEMENT
+  // Per-peer DM isolation so CEO's main session stays clean.
+  // ──────────────────────────────────────────────────────────────
+  session: {
+    dmScope: "per-channel-peer",
+    reset: {
+      mode: "daily",
+      atHour: 4,
+      idleMinutes: 240,
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // GATEWAY
+  // ──────────────────────────────────────────────────────────────
+  gateway: {
+    port: 18789,
+    bind: "127.0.0.1",
+    auth: {
+      mode: "shared-secret",
+      // Set OPENCLAW_GATEWAY_TOKEN in .env; falls back to auto-generated token
+    },
+    channelHealthCheckMinutes: 5,
+    channelStaleEventThresholdMinutes: 30,
+    channelMaxRestartsPerHour: 10,
+  },
+}
