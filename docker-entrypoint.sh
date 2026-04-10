@@ -23,10 +23,32 @@ mkdir -p "$STATE_DIR"
 # ── Write openclaw.json (on first run or if missing) ─────────────────────────
 if [[ ! -f "$OPENCLAW_CONFIG" ]]; then
     echo "[entrypoint] Writing openclaw.json..."
-    sed "s|PROFIT_CORP_ROOT|$CORP_ROOT|g" "$CORP_ROOT/openclaw.json" > "$OPENCLAW_CONFIG"
+    # Use Python instead of sed to safely handle paths with special characters (|, spaces, etc.)
+    python3 - <<PYEOF
+src = open("$CORP_ROOT/openclaw.json").read()
+dst = src.replace("PROFIT_CORP_ROOT", "$CORP_ROOT")
+open("$OPENCLAW_CONFIG", "w").write(dst)
+PYEOF
 
     if [[ -n "$TELEGRAM_CHAT_ID" ]]; then
-        sed -i "s|allowFrom: \[\]|allowFrom: [\"$TELEGRAM_CHAT_ID\"]|g" "$OPENCLAW_CONFIG"
+        python3 - <<PYEOF
+import json
+
+cfg_path = "$OPENCLAW_CONFIG"
+chat_id  = "$TELEGRAM_CHAT_ID"
+
+with open(cfg_path) as f:
+    cfg = json.load(f)
+
+telegram = cfg.get("channels", {}).get("telegram", {})
+allow_from = telegram.get("allowFrom", [])
+if chat_id not in allow_from:
+    allow_from.append(chat_id)
+telegram["allowFrom"] = allow_from
+
+with open(cfg_path, "w") as f:
+    json.dump(cfg, f, indent=2)
+PYEOF
         echo "[entrypoint] Telegram allowFrom: $TELEGRAM_CHAT_ID"
     fi
 else
