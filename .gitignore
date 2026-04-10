@@ -1,19 +1,23 @@
-# Environment variables (contains API keys and tokens)
+# Environment secrets — never commit these
 .env
+.env.local
+.env.production
 
-# Archives are stored locally; individual project folders are gitignored
-# but the directory itself is tracked via archives/.gitkeep
-archives/*/
+# Docker runtime state
+.openclaw-state/
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
+.venv/
 
-# Node / npm
+# Node
 node_modules/
 
-# OS files
+# Generated project artifacts (archived by agents at runtime)
+archives/
+
+# OS
 .DS_Store
 Thumbs.db

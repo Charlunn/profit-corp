@@ -7,7 +7,6 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(BASE_DIR, "LEDGER.json")
 CULTURE_PATH = os.path.join(BASE_DIR, "CORP_CULTURE.md")
-CORP_CONFIG_PATH = os.path.join(BASE_DIR, "..", "corp_config.json")
 
 def load_ledger():
     if not os.path.exists(LEDGER_PATH):
@@ -165,98 +164,9 @@ def daily_audit():
 
     save_ledger(ledger)
 
-def load_corp_config() -> dict:
-    if not os.path.exists(CORP_CONFIG_PATH):
-        return {}
-    with open(CORP_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_corp_config(config: dict) -> None:
-    with open(CORP_CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
-
-
-def set_token_quota(agent_id: str, max_tokens: int) -> None:
-    """
-    Accountant governance: adjust the token_quota.max_tokens_per_run for an agent.
-    Only the Accountant (or the owner) should call this.
-    """
-    config = load_corp_config()
-    agents = config.get("agents", {})
-    if agent_id not in agents:
-        print(f"Error: Agent {agent_id} not found in corp_config.json")
-        return
-    try:
-        max_tokens = int(max_tokens)
-    except (ValueError, TypeError):
-        print(f"Error: max_tokens must be an integer, got: {max_tokens!r}")
-        return
-    agents[agent_id].setdefault("token_quota", {})["max_tokens_per_run"] = max_tokens
-    save_corp_config(config)
-    print(f"🔧  Token quota for {agent_id} set to {max_tokens:,} tokens/run")
-
-
-def inject_skill(agent_id: str, skill_name: str) -> None:
-    """
-    Dynamic Skill Injection: Architect or Accountant can add a skill to an agent.
-    The change is persisted in corp_config.json so it survives restarts.
-    """
-    config = load_corp_config()
-    agents = config.get("agents", {})
-    if agent_id not in agents:
-        print(f"Error: Agent {agent_id} not found in corp_config.json")
-        return
-    skills = agents[agent_id].setdefault("skills", [])
-    if skill_name in skills:
-        print(f"Skill '{skill_name}' already present for {agent_id}")
-        return
-    skills.append(skill_name)
-    save_corp_config(config)
-    print(f"💉  Skill '{skill_name}' injected into {agent_id} (restart agent to apply)")
-
-
-def remove_skill(agent_id: str, skill_name: str) -> None:
-    """Remove a dynamically injected skill from an agent."""
-    config = load_corp_config()
-    agents = config.get("agents", {})
-    if agent_id not in agents:
-        print(f"Error: Agent {agent_id} not found in corp_config.json")
-        return
-    skills = agents[agent_id].get("skills", [])
-    if skill_name not in skills:
-        print(f"Skill '{skill_name}' not found for {agent_id}")
-        return
-    skills.remove(skill_name)
-    save_corp_config(config)
-    print(f"🗑️   Skill '{skill_name}' removed from {agent_id}")
-
-
-def update_model_interface(agent_id: str, model_ref: str) -> None:
-    """
-    Reserved interface for future Accountant-driven model upgrades.
-    Sets the model_interface.upgrade_to field; actual model switching
-    requires manual confirmation via the OpenCLAW Control UI or openclaw config set.
-    """
-    config = load_corp_config()
-    agents = config.get("agents", {})
-    if agent_id not in agents:
-        print(f"Error: Agent {agent_id} not found in corp_config.json")
-        return
-    agents[agent_id].setdefault("model_interface", {})["upgrade_to"] = model_ref
-    save_corp_config(config)
-    print(
-        f"📋  Model upgrade queued for {agent_id}: → {model_ref}\n"
-        f"    Apply with: openclaw config set agents.list[id={agent_id}].model {model_ref}"
-    )
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(
-            "Usage: python manage_finance.py "
-            "[score|audit|tokens|revenue|bounty|set_quota|inject_skill|remove_skill|update_model] ..."
-        )
+        print("Usage: python manage_finance.py [score|audit|tokens] ...")
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -270,15 +180,3 @@ if __name__ == "__main__":
         record_revenue(sys.argv[2], sys.argv[3], sys.argv[4])
     elif cmd == "bounty":
         grant_bounty(sys.argv[2], sys.argv[3], sys.argv[4])
-    elif cmd == "set_quota":
-        # Usage: python manage_finance.py set_quota <agent_id> <max_tokens>
-        set_token_quota(sys.argv[2], sys.argv[3])
-    elif cmd == "inject_skill":
-        # Usage: python manage_finance.py inject_skill <agent_id> <skill_name>
-        inject_skill(sys.argv[2], sys.argv[3])
-    elif cmd == "remove_skill":
-        # Usage: python manage_finance.py remove_skill <agent_id> <skill_name>
-        remove_skill(sys.argv[2], sys.argv[3])
-    elif cmd == "update_model":
-        # Usage: python manage_finance.py update_model <agent_id> <model_ref>
-        update_model_interface(sys.argv[2], sys.argv[3])

@@ -1,13 +1,20 @@
 #!/bin/bash
 
 # Profit-First SaaS Inc. - Cloud/Local Deployment Script
-# This script registers all agents and prepares the workspace.
+# -------------------------------------------------------
+# This is the LEGACY one-step setup for environments that already have
+# OpenCLAW installed. For a full native integration (cron, Telegram,
+# webchat routing, no default agent), use the new setup script instead:
+#
+#   ./setup_corp.sh      ← recommended for existing OpenCLAW installs
+#   docker-compose up -d ← recommended for fresh cloud servers
+#
+# See ARCHITECTURE.md for the full OpenCLAW integration guide.
 
 echo "🚀 Deploying Profit-First SaaS Inc..."
 
 # 1. Path detection
-# Assuming the script is run from the profit-corp root
-CORP_ROOT=$(pwd)
+CORP_ROOT=$(cd "$(dirname "$0")" && pwd)
 
 # Check if openclaw is available globally
 if ! command -v openclaw &> /dev/null; then
@@ -18,44 +25,31 @@ else
     OPENCLAW_CMD="openclaw"
 fi
 
-# 2. Register agents
-# We use the local config logic
+# 2. Register agents using `openclaw agents add` (the correct modern command)
+# Each agent gets its own isolated workspace, session store, and auth profile.
 agents=("scout" "cmo" "arch" "ceo" "accountant")
 
 for agent in "${agents[@]}"; do
     echo "--- Registering $agent ---"
-    $OPENCLAW_CMD agent create "$agent" --workspace "$CORP_ROOT/workspaces/$agent" -y
+    $OPENCLAW_CMD agents add "$agent" --workspace "$CORP_ROOT/workspaces/$agent" --non-interactive 2>/dev/null || \
+    $OPENCLAW_CMD agent create "$agent" --workspace "$CORP_ROOT/workspaces/$agent" -y 2>/dev/null || \
+    echo "  ⚠ Could not register $agent — start the gateway first, or use setup_corp.sh"
 done
 
 # 3. Initialize Finance
 echo "--- Initializing Ledger ---"
 python3 "$CORP_ROOT/shared/manage_finance.py" audit
 
-# 4. Telegram Bot setup (optional)
-echo ""
-echo "--- Telegram Bot Setup ---"
-if python3 -c "import telegram" &> /dev/null; then
-    echo "✅ python-telegram-bot is installed."
-else
-    echo "⚠️  python-telegram-bot not found. Installing..."
-    pip3 install "python-telegram-bot>=20.0" --quiet && echo "✅ Installed." || echo "❌ Install failed. Run: pip3 install 'python-telegram-bot>=20.0'"
-fi
-
-echo ""
-echo "To start the Telegram Bot, set your credentials and run:"
-echo "  export TELEGRAM_BOT_TOKEN=<your_token>"
-echo "  export TELEGRAM_ALLOWED_USERS=<your_telegram_user_id>"
-echo "  python3 $CORP_ROOT/shared/telegram_bot.py"
-echo ""
-echo "Get your Bot Token from @BotFather on Telegram."
-echo "Get your User ID from @userinfobot on Telegram."
-
-echo ""
 echo "✅ Deployment Complete."
-echo "Workflow:"
-echo "1. Scout:   $OPENCLAW_CMD agent run scout 'Find leads'"
-echo "2. CMO:     $OPENCLAW_CMD agent run cmo 'Make plan'"
-echo "3. Arch:    $OPENCLAW_CMD agent run arch 'Design spec'"
-echo "4. CEO:     $OPENCLAW_CMD agent run ceo 'Decision'"
-echo "5. Auditor: $OPENCLAW_CMD agent run accountant 'Audit'"
-
+echo ""
+echo "⚠️  For full OpenCLAW-native integration (Telegram, webchat, cron), run:"
+echo "   ./setup_corp.sh"
+echo ""
+echo "Workflow (manual run):"
+echo "1. Scout:      $OPENCLAW_CMD agent run scout 'Find leads'"
+echo "2. CMO:        $OPENCLAW_CMD agent run cmo 'Make plan'"
+echo "3. Arch:       $OPENCLAW_CMD agent run arch 'Design spec'"
+echo "4. CEO:        $OPENCLAW_CMD agent run ceo 'Decision'"
+echo "5. Auditor:    $OPENCLAW_CMD agent run accountant 'Audit'"
+echo ""
+echo "Or trigger via Telegram after running setup_corp.sh!"
