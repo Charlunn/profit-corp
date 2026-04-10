@@ -65,12 +65,7 @@
       "botToken": { "source": "env", "provider": "default", "id": "TELEGRAM_BOT_TOKEN" },
       "dmPolicy": "allowlist",
       "allowFrom": [],
-      "streaming": {
-        "mode": "partial",
-        "chunkMode": "line",
-        "preview": { "chunk": 120 },
-        "block": { "enabled": true, "coalesce": true }
-      },
+      "streaming": "partial",
       "customCommands": [
         { "command": "help",        "description": "❓ Show all commands with usage examples" },
         { "command": "new_project", "description": "🚀 Start a new SaaS project (guided questionnaire)" },
