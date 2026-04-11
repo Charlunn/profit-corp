@@ -32,11 +32,122 @@ warn()    { echo -e "${YELLOW}[corp]${NC} $*"; }
 error()   { echo -e "${RED}[corp]${NC} $*" >&2; exit 1; }
 confirm() { read -r -p "$1 [y/N] " ans; [[ "$ans" =~ ^[Yy]$ ]]; }
 
+ask_config_choice() {
+    local ans
+    while true; do
+        read -r -p "Choose config action [O]verwrite [M]erge-update [S]kip (default: M): " ans
+        ans="${ans:-M}"
+        case "${ans^^}" in
+            O|M|S) echo "${ans^^}"; return 0 ;;
+            *) warn "Invalid choice: $ans" ;;
+        esac
+    done
+}
+
+ask_provider_choice() {
+    local ans
+    while true; do
+        read -r -p "Select provider [1] newapi (default) [2] OpenAI [3] Anthropic [4] OpenRouter [5] Custom OpenAI-compatible: " ans
+        ans="${ans:-1}"
+        case "$ans" in
+            1|2|3|4|5) echo "$ans"; return 0 ;;
+            *) warn "Invalid choice: $ans" ;;
+        esac
+    done
+}
+
+upsert_env_var() {
+    local env_file="$1"
+    local key="$2"
+    local value="$3"
+    python3 - "$env_file" "$key" "$value" <<'PYEOF'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+key = sys.argv[2]
+value = sys.argv[3]
+line = f"{key}={value}"
+if not p.exists():
+    p.write_text(line + "\n", encoding="utf-8")
+    raise SystemExit(0)
+text = p.read_text(encoding="utf-8")
+lines = text.splitlines()
+pat = re.compile(rf"^\s*{re.escape(key)}\s*=")
+for i, l in enumerate(lines):
+    if pat.match(l):
+        lines[i] = line
+        break
+else:
+    lines.append(line)
+out = "\n".join(lines)
+if text.endswith("\n") or not lines:
+    out += "\n"
+p.write_text(out, encoding="utf-8")
+PYEOF
+}
+
+load_env_file() {
+    local env_file="$1"
+    local normalized="$OPENCLAW_CONFIG_DIR/.env.normalized"
+    sed 's/\r$//' "$env_file" > "$normalized"
+    set -a
+    # shellcheck disable=SC1090
+    source "$normalized"
+    set +a
+}
+
+configure_api_provider() {
+    local env_file="$1"
+    info "API provider setup"
+    local choice
+    choice=$(ask_provider_choice)
+
+    case "$choice" in
+        1)
+            read -r -p "newapi base URL (OpenAI-compatible, e.g. https://<your-domain>/v1): " NEWAPI_BASE_URL
+            read -r -p "newapi API key: " NEWAPI_API_KEY
+            [[ -z "${NEWAPI_BASE_URL:-}" ]] && error "newapi base URL is required"
+            [[ -z "${NEWAPI_API_KEY:-}" ]] && error "newapi API key is required"
+            upsert_env_var "$env_file" "OPENAI_BASE_URL" "$NEWAPI_BASE_URL"
+            upsert_env_var "$env_file" "OPENAI_API_KEY" "$NEWAPI_API_KEY"
+            info "✓ Provider set to newapi (OPENAI_BASE_URL + OPENAI_API_KEY)"
+            ;;
+        2)
+            read -r -p "OpenAI API key: " OPENAI_KEY
+            [[ -z "${OPENAI_KEY:-}" ]] && error "OpenAI API key is required"
+            upsert_env_var "$env_file" "OPENAI_API_KEY" "$OPENAI_KEY"
+            info "✓ Provider set to OpenAI"
+            ;;
+        3)
+            read -r -p "Anthropic API key: " ANTHROPIC_KEY
+            [[ -z "${ANTHROPIC_KEY:-}" ]] && error "Anthropic API key is required"
+            upsert_env_var "$env_file" "ANTHROPIC_API_KEY" "$ANTHROPIC_KEY"
+            info "✓ Provider set to Anthropic"
+            ;;
+        4)
+            read -r -p "OpenRouter API key: " OPENROUTER_KEY
+            [[ -z "${OPENROUTER_KEY:-}" ]] && error "OpenRouter API key is required"
+            upsert_env_var "$env_file" "OPENROUTER_API_KEY" "$OPENROUTER_KEY"
+            info "✓ Provider set to OpenRouter"
+            ;;
+        5)
+            read -r -p "Custom OpenAI-compatible base URL: " CUSTOM_BASE_URL
+            read -r -p "Custom API key: " CUSTOM_API_KEY
+            [[ -z "${CUSTOM_BASE_URL:-}" ]] && error "Custom base URL is required"
+            [[ -z "${CUSTOM_API_KEY:-}" ]] && error "Custom API key is required"
+            upsert_env_var "$env_file" "OPENAI_BASE_URL" "$CUSTOM_BASE_URL"
+            upsert_env_var "$env_file" "OPENAI_API_KEY" "$CUSTOM_API_KEY"
+            info "✓ Provider set to custom OpenAI-compatible endpoint"
+            ;;
+    esac
+}
+
 # ── Detect paths ─────────────────────────────────────────────────────────────
 CORP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPENCLAW_CONFIG_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 OPENCLAW_CONFIG="$OPENCLAW_CONFIG_DIR/openclaw.json"
 OPENCLAW_CONFIG_BACKUP="$OPENCLAW_CONFIG_DIR/openclaw.json.$(date +%Y%m%d_%H%M%S).bak"
+
+mkdir -p "$OPENCLAW_CONFIG_DIR"
 
 info "Profit-First SaaS Inc. — Corp Setup"
 info "Corp root : $CORP_ROOT"
@@ -62,12 +173,23 @@ if [[ -z "$PYTHON_CMD" ]]; then
 fi
 
 # ── Load .env if present ─────────────────────────────────────────────────────
-if [[ -f "$CORP_ROOT/.env" ]]; then
+ENV_FILE="$CORP_ROOT/.env"
+if [[ -f "$ENV_FILE" ]]; then
     info "Loading .env"
-    set -a; source "$CORP_ROOT/.env"; set +a
+    load_env_file "$ENV_FILE"
 else
-    warn ".env not found. Telegram + webhook tokens must be set in ~/.openclaw/openclaw.json manually."
+    warn ".env not found. Creating a new one from .env.example ..."
+    if [[ -f "$CORP_ROOT/.env.example" ]]; then
+        cp "$CORP_ROOT/.env.example" "$ENV_FILE"
+        info "✓ Created $ENV_FILE"
+        load_env_file "$ENV_FILE"
+    else
+        error ".env.example not found. Cannot initialize environment."
+    fi
 fi
+
+configure_api_provider "$ENV_FILE"
+load_env_file "$ENV_FILE"
 
 # ── Ensure ~/.openclaw dir exists ─────────────────────────────────────────────
 mkdir -p "$OPENCLAW_CONFIG_DIR"
@@ -79,20 +201,66 @@ TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 info "Writing OpenCLAW configuration..."
 
 # Backup existing config if present
+CONFIG_ACTION="O"
 if [[ -f "$OPENCLAW_CONFIG" ]]; then
-    warn "Existing openclaw.json found — backing up to $OPENCLAW_CONFIG_BACKUP"
-    cp "$OPENCLAW_CONFIG" "$OPENCLAW_CONFIG_BACKUP"
+    warn "Existing openclaw.json found at $OPENCLAW_CONFIG"
+    CONFIG_ACTION=$(ask_config_choice)
+
+    if [[ "$CONFIG_ACTION" != "S" ]]; then
+        warn "Backing up existing config to $OPENCLAW_CONFIG_BACKUP"
+        cp "$OPENCLAW_CONFIG" "$OPENCLAW_CONFIG_BACKUP"
+    fi
 fi
 
-# Substitute PROFIT_CORP_ROOT and write config
-# Use Python instead of sed to safely handle paths containing special characters (|, spaces, etc.)
-python3 - <<PYEOF
-import sys, json, os
-
+if [[ "$CONFIG_ACTION" == "S" ]]; then
+    info "Skipping openclaw.json write/update by user choice."
+else
+    # Substitute PROFIT_CORP_ROOT and prepare template text
+    TEMPLATE_CONFIG_PATH="$OPENCLAW_CONFIG_DIR/openclaw.template.json"
+    python3 - <<PYEOF
 src = open("$CORP_ROOT/openclaw.json").read()
 dst = src.replace("PROFIT_CORP_ROOT", "$CORP_ROOT")
-open("$OPENCLAW_CONFIG", "w").write(dst)
+open("$TEMPLATE_CONFIG_PATH", "w").write(dst)
 PYEOF
+
+    if [[ "$CONFIG_ACTION" == "M" && -f "$OPENCLAW_CONFIG" ]]; then
+        info "Merging required corp settings into existing openclaw.json..."
+        python3 - <<PYEOF
+import json
+
+target_path = "$OPENCLAW_CONFIG"
+template_path = "$TEMPLATE_CONFIG_PATH"
+
+with open(template_path, "r", encoding="utf-8") as f:
+    tpl = json.load(f)
+with open(target_path, "r", encoding="utf-8") as f:
+    cur = json.load(f)
+
+cur.setdefault("agents", {})
+cur["agents"]["defaults"] = tpl["agents"].get("defaults", {})
+cur["agents"]["list"] = tpl["agents"].get("list", [])
+cur["bindings"] = tpl.get("bindings", [])
+
+cur.setdefault("channels", {})
+cur["channels"]["telegram"] = tpl["channels"].get("telegram", {})
+
+cur["tools"] = tpl.get("tools", {})
+cur["cron"] = tpl.get("cron", {})
+cur["hooks"] = tpl.get("hooks", {})
+cur["session"] = tpl.get("session", {})
+cur["gateway"] = tpl.get("gateway", {})
+
+with open(target_path, "w", encoding="utf-8") as f:
+    json.dump(cur, f, indent=2)
+PYEOF
+    else
+        info "Writing OpenCLAW configuration (overwrite)..."
+        cp "$TEMPLATE_CONFIG_PATH" "$OPENCLAW_CONFIG"
+    fi
+
+    rm -f "$TEMPLATE_CONFIG_PATH"
+fi
+
 
 # Inject numeric telegram chat ID into allowFrom if provided
 if [[ -n "$TELEGRAM_CHAT_ID" ]]; then

@@ -17,7 +17,7 @@ node_modules/
 
 # Generated project artifacts (archived by agents at runtime)
 archives/
-
+/.claude/
 # OS
 .DS_Store
 Thumbs.db

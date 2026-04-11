@@ -248,7 +248,7 @@ cd /path/to/profit-corp
 
 This script:
 1. Detects OpenCLAW installation.
-2. Writes `openclaw.json` to `~/.openclaw/` (merges safely).
+2. Interactively handles existing `openclaw.json` (`overwrite` / `merge-update` / `skip`; default `merge-update`).
 3. **Removes any legacy `main` default agent** (`openclaw agents remove main --force`).
 4. Runs `openclaw agents add` for each corp agent.
 5. Registers the daily cron job.

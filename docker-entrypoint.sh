@@ -77,6 +77,24 @@ if [[ -f "$CORP_ROOT/shared/manage_finance.py" ]]; then
     python3 "$CORP_ROOT/shared/manage_finance.py" audit || true
 fi
 
+# ── Runtime env diagnostics (non-secret) ─────────────────────────────────────
+if [[ -n "${OPENAI_BASE_URL:-}" && -n "${OPENAI_API_KEY:-}" ]]; then
+    echo "[entrypoint] Provider env detected: OPENAI-compatible (${OPENAI_BASE_URL})"
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    echo "[entrypoint] Provider env detected: ANTHROPIC_API_KEY"
+elif [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+    echo "[entrypoint] Provider env detected: OPENROUTER_API_KEY"
+else
+    echo "[entrypoint] WARNING: No provider API env detected. Check .env / compose env_file."
+fi
+
+if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+    echo "[entrypoint] WARNING: TELEGRAM_BOT_TOKEN is missing in runtime env."
+fi
+if [[ -z "${OPENCLAW_HOOKS_TOKEN:-}" ]]; then
+    echo "[entrypoint] WARNING: OPENCLAW_HOOKS_TOKEN is missing in runtime env."
+fi
+
 # ── Start OpenCLAW gateway in foreground ─────────────────────────────────────
 echo "[entrypoint] Launching OpenCLAW gateway on port 18789..."
 exec openclaw gateway --port 18789 --bind 0.0.0.0
