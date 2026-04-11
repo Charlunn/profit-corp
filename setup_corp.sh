@@ -97,6 +97,15 @@ load_env_file() {
 
 configure_api_provider() {
     local env_file="$1"
+
+    if [[ -n "${OPENAI_API_KEY:-}" || -n "${ANTHROPIC_API_KEY:-}" || -n "${OPENROUTER_API_KEY:-}" ]]; then
+        info "Detected existing provider configuration in .env"
+        if confirm "Keep existing provider configuration (recommended)?"; then
+            info "✓ Keeping existing provider configuration unchanged"
+            return 0
+        fi
+    fi
+
     info "API provider setup"
     local choice
     choice=$(ask_provider_choice)
@@ -241,8 +250,10 @@ cur["agents"]["defaults"] = tpl["agents"].get("defaults", {})
 cur["agents"]["list"] = tpl["agents"].get("list", [])
 cur["bindings"] = tpl.get("bindings", [])
 
+# Keep existing telegram bot settings; only ensure allowFrom can be appended later.
 cur.setdefault("channels", {})
-cur["channels"]["telegram"] = tpl["channels"].get("telegram", {})
+if "telegram" not in cur["channels"]:
+    cur["channels"]["telegram"] = tpl["channels"].get("telegram", {})
 
 cur["tools"] = tpl.get("tools", {})
 cur["cron"] = tpl.get("cron", {})
