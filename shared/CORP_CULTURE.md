@@ -10,5 +10,13 @@ Welcome to Profit-First SaaS Inc. This document contains the collective wisdom o
 3. **Speed is King**: Micro-SaaS must be buildable in 24 hours.
 
 ---
+### Company-Wide Governance (2026-04-11)
+1. **Shareholder Announcement Priority**: `shared/SHAREHOLDER_ANNOUNCEMENTS.md` is the highest-priority rule source across all agents.
+2. **Default Project Mode**: New initiatives start as SaaS by default; do not ask shareholders to classify business-vs-tech.
+3. **Role Boundary**: Shareholders set direction; agents execute detailed research/design (naming, domain/competition exploration, positioning).
+4. **Stack & Payment Policy**: Supabase remains the default backend; do not default to Stripe; payment provider default is intentionally unset for now.
+5. **Language Policy**: Default output language is Simplified Chinese unless shareholder explicitly requests another language.
+
+---
 ### Generation 0 (Pre-Seed)
 - The company was founded on 2026-04-10 with a bootstrap budget.

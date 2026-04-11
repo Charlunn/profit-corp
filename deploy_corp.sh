@@ -20,16 +20,10 @@
 # See ARCHITECTURE.md for the full OpenCLAW integration guide.
 # =============================================================================
 
-echo "⚠️  WARNING: deploy_corp.sh is DEPRECATED."
-echo "   Please use ./setup_corp.sh or docker-compose up -d instead."
-echo ""
-read -r -p "Continue anyway? [y/N] " ans
-if [[ ! "$ans" =~ ^[Yy]$ ]]; then
-    echo "Aborted. Run ./setup_corp.sh for the recommended setup."
-    exit 0
-fi
-
-echo "🚀 Deploying Profit-First SaaS Inc..."
+echo "⚠️  WARNING: deploy_corp.sh is DEPRECATED and blocked."
+echo "   This legacy script can leave stale routing/default-agent state."
+echo "   Please run ./setup_corp.sh (or docker-compose up -d) instead."
+exit 1
 
 # 1. Path detection
 CORP_ROOT=$(cd "$(dirname "$0")" && pwd)

@@ -68,7 +68,7 @@
       "streaming": "partial",
       "customCommands": [
         { "command": "help",        "description": "❓ Show all commands with usage examples" },
-        { "command": "new_project", "description": "🚀 Start a new SaaS project (guided questionnaire)" },
+        { "command": "new_project", "description": "🚀 Start a new SaaS project (lean kickoff, default SaaS)" },
         { "command": "status",      "description": "📊 Get company treasury & agent status" },
         { "command": "daily",       "description": "🌅 Run the full daily pipeline now" },
         { "command": "revenue",     "description": "💰 Record revenue: /revenue <amount> <source> <note>" },

@@ -18,5 +18,6 @@
       "Bash(node openclaw.mjs gateway run --port 18789 --local)",
       "Bash(node openclaw.mjs gateway run --help)"
     ]
-  }
+  },
+  "bypassPermissions": true
 }

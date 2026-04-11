@@ -66,6 +66,7 @@ if [[ -d "$MAIN_WORKSPACE" ]]; then
     rm -rf "$MAIN_WORKSPACE"
 fi
 echo "[entrypoint] ✓ Default agent cleanup complete."
+echo "[entrypoint] NOTE: after gateway is up, verify bindings with: openclaw agents list --bindings (telegram/webchat/webhook -> ceo)"
 
 # ── Ensure archives directory exists ─────────────────────────────────────────
 mkdir -p "$CORP_ROOT/archives"

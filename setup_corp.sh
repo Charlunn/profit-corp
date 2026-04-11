@@ -174,6 +174,18 @@ for agent in "${agents[@]}"; do
     unset rc
 done
 
+# ── Post-setup binding verification ───────────────────────────────────────────
+info "Verifying CEO default routing bindings..."
+BINDINGS_OUT="$(openclaw agents list --bindings 2>/dev/null || true)"
+if echo "$BINDINGS_OUT" | grep -q "telegram.*ceo" && \
+   echo "$BINDINGS_OUT" | grep -q "webchat.*ceo" && \
+   echo "$BINDINGS_OUT" | grep -q "webhook.*ceo"; then
+    info "✓ CEO bindings verified for telegram/webchat/webhook"
+else
+    warn "Could not confirm full CEO bindings from gateway output."
+    warn "Run: openclaw agents list --bindings"
+fi
+
 # ── Register daily cron job ───────────────────────────────────────────────────
 info "Registering native daily pipeline cron job (08:00 $OPENCLAW_TZ)..."
 
