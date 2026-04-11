@@ -55,10 +55,17 @@ for agent in "${agents[@]}"; do
     error "Workspace missing for $agent: $workspace"
   fi
 
-  out="$(openclaw agents add "$agent" --workspace "$workspace" --non-interactive 2>&1)" || {
+  rc=0
+  out="$(openclaw agents add "$agent" --workspace "$workspace" --non-interactive 2>&1)" || rc=$?
+
+  if [[ $rc -eq 0 ]]; then
+    info "  Registered: $agent"
+  elif echo "$out" | grep -qi "already exists"; then
+    warn "  Agent '$agent' already exists; keeping existing registration."
+  else
     echo "$out" | sed 's/^/[reset]   /'
     error "Failed to register $agent"
-  }
+  fi
 done
 
 info "Verifying bindings..."
