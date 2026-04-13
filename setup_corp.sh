@@ -231,7 +231,6 @@ detect_provider_from_env() {
 
     if has_real_value "${OPENAI_API_KEY:-}"; then
         CURRENT_PROVIDER_KIND="openai-compatible"
-        CURRENT_PROVIDER_PREFIX="openai"
         CURRENT_PROVIDER_API_KEY="${OPENAI_API_KEY}"
         if has_real_value "${OPENAI_BASE_URL:-}"; then
             CURRENT_PROVIDER_BASE_URL="${OPENAI_BASE_URL}"
@@ -242,13 +241,11 @@ detect_provider_from_env() {
         fi
     elif has_real_value "${ANTHROPIC_API_KEY:-}"; then
         CURRENT_PROVIDER_KIND="anthropic"
-        CURRENT_PROVIDER_PREFIX="anthropic"
         CURRENT_PROVIDER_LABEL="Anthropic"
         CURRENT_PROVIDER_BASE_URL="https://api.anthropic.com/v1"
         CURRENT_PROVIDER_API_KEY="${ANTHROPIC_API_KEY}"
     elif has_real_value "${OPENROUTER_API_KEY:-}"; then
         CURRENT_PROVIDER_KIND="openrouter"
-        CURRENT_PROVIDER_PREFIX="openrouter"
         CURRENT_PROVIDER_LABEL="OpenRouter"
         CURRENT_PROVIDER_BASE_URL="https://openrouter.ai/api/v1"
         CURRENT_PROVIDER_API_KEY="${OPENROUTER_API_KEY}"
@@ -445,7 +442,7 @@ for item in items:
         model_id = item.get("id") or item.get("name") or ""
     if not model_id:
         continue
-    ref = f"{provider_prefix}/{model_id}"
+    ref = model_id
     if ref in seen:
         continue
     seen.add(ref)
@@ -485,7 +482,7 @@ resolve_model_choice() {
         if [[ "$ans" == */* ]]; then
             candidate="$ans"
         else
-            candidate="${provider_prefix}/${ans}"
+            candidate="$ans"
         fi
 
         for ((i = 0; i < ${#models_ref[@]}; i++)); do
@@ -542,7 +539,7 @@ collect_model_configuration() {
         print_model_catalog AVAILABLE_MODELS
     else
         warn "Falling back to manual model entry because no catalog was returned."
-        AVAILABLE_MODELS=("${CURRENT_PROVIDER_PREFIX}/manual-placeholder")
+        AVAILABLE_MODELS=("manual-placeholder")
     fi
 
     if ask_yes_no_default "Write the full fetched model catalog into OpenCLAW's allowlist?" "N"; then
