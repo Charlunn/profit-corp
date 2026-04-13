@@ -56,6 +56,58 @@ ask_provider_choice() {
     done
 }
 
+ask_model_config_mode() {
+    local ans
+    while true; do
+        read -r -p "Model config [1] one model for all agents (default) [2] choose per agent [3] keep current model config: " ans
+        ans="${ans:-1}"
+        case "$ans" in
+            1|2|3) echo "$ans"; return 0 ;;
+            *) warn "Invalid choice: $ans" ;;
+        esac
+    done
+}
+
+ask_yes_no_default() {
+    local prompt="$1"
+    local default="${2:-N}"
+    local ans
+    while true; do
+        if [[ "${default^^}" == "Y" ]]; then
+            read -r -p "$prompt [Y/n] " ans
+            ans="${ans:-Y}"
+        else
+            read -r -p "$prompt [y/N] " ans
+            ans="${ans:-N}"
+        fi
+        case "${ans^^}" in
+            Y|N) [[ "${ans^^}" == "Y" ]]; return 0 ;;
+            *) warn "Invalid choice: $ans" ;;
+        esac
+    done
+}
+
+prompt_secret() {
+    local prompt="$1"
+    local __var_name="$2"
+    local value
+    read -r -s -p "$prompt" value
+    echo
+    printf -v "$__var_name" '%s' "$value"
+}
+
+has_real_value() {
+    local value="${1:-}"
+    case "$value" in
+        ""|your_newapi_api_key_here|your_telegram_bot_token_here|your_numeric_telegram_id_here|replace_with_strong_random_token|your_anthropic_api_key_here|your_openrouter_api_key_here|your_openai_api_key_here|your_custom_api_key_here|https://your-newapi-domain/v1|https://your-openai-compatible-domain/v1)
+            return 1
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
 upsert_env_var() {
     local env_file="$1"
     local key="$2"
@@ -85,6 +137,26 @@ p.write_text(out, encoding="utf-8")
 PYEOF
 }
 
+unset_env_var() {
+    local env_file="$1"
+    local key="$2"
+    python3 - "$env_file" "$key" <<'PYEOF'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+key = sys.argv[2]
+if not p.exists():
+    raise SystemExit(0)
+text = p.read_text(encoding="utf-8")
+lines = text.splitlines()
+pat = re.compile(rf"^\s*{re.escape(key)}\s*=")
+filtered = [line for line in lines if not pat.match(line)]
+out = "\n".join(filtered)
+if filtered and text.endswith("\n"):
+    out += "\n"
+p.write_text(out, encoding="utf-8")
+PYEOF
+}
+
 load_env_file() {
     local env_file="$1"
     local normalized="$OPENCLAW_CONFIG_DIR/.env.normalized"
@@ -93,6 +165,47 @@ load_env_file() {
     # shellcheck disable=SC1090
     source "$normalized"
     set +a
+}
+
+clear_provider_env_vars() {
+    local env_file="$1"
+    unset_env_var "$env_file" "OPENAI_BASE_URL"
+    unset_env_var "$env_file" "OPENAI_API_KEY"
+    unset_env_var "$env_file" "ANTHROPIC_API_KEY"
+    unset_env_var "$env_file" "OPENROUTER_API_KEY"
+}
+
+detect_provider_from_env() {
+    CURRENT_PROVIDER_KIND=""
+    CURRENT_PROVIDER_PREFIX=""
+    CURRENT_PROVIDER_LABEL=""
+    CURRENT_PROVIDER_BASE_URL=""
+    CURRENT_PROVIDER_API_KEY=""
+
+    if has_real_value "${OPENAI_API_KEY:-}"; then
+        CURRENT_PROVIDER_KIND="openai-compatible"
+        CURRENT_PROVIDER_PREFIX="openai"
+        CURRENT_PROVIDER_API_KEY="${OPENAI_API_KEY}"
+        if has_real_value "${OPENAI_BASE_URL:-}"; then
+            CURRENT_PROVIDER_BASE_URL="${OPENAI_BASE_URL}"
+            CURRENT_PROVIDER_LABEL="OpenAI-compatible"
+        else
+            CURRENT_PROVIDER_BASE_URL="https://api.openai.com/v1"
+            CURRENT_PROVIDER_LABEL="OpenAI"
+        fi
+    elif has_real_value "${ANTHROPIC_API_KEY:-}"; then
+        CURRENT_PROVIDER_KIND="anthropic"
+        CURRENT_PROVIDER_PREFIX="anthropic"
+        CURRENT_PROVIDER_LABEL="Anthropic"
+        CURRENT_PROVIDER_BASE_URL="https://api.anthropic.com/v1"
+        CURRENT_PROVIDER_API_KEY="${ANTHROPIC_API_KEY}"
+    elif has_real_value "${OPENROUTER_API_KEY:-}"; then
+        CURRENT_PROVIDER_KIND="openrouter"
+        CURRENT_PROVIDER_PREFIX="openrouter"
+        CURRENT_PROVIDER_LABEL="OpenRouter"
+        CURRENT_PROVIDER_BASE_URL="https://openrouter.ai/api/v1"
+        CURRENT_PROVIDER_API_KEY="${OPENROUTER_API_KEY}"
+    fi
 }
 
 is_gateway_ready() {
@@ -121,6 +234,26 @@ wait_for_gateway_ready() {
         elapsed=$((elapsed + interval_s))
     done
 
+    return 1
+}
+
+ensure_gateway_ready() {
+    local port="$1"
+    local timeout_s="${2:-30}"
+    local interval_s="${3:-1}"
+
+    start_gateway_if_needed "$port"
+    if wait_for_gateway_ready "$timeout_s" "$interval_s"; then
+        return 0
+    fi
+
+    warn "Gateway did not become ready within ${timeout_s}s."
+    if [[ -f /tmp/openclaw-gateway.log ]]; then
+        warn "Recent gateway log tail:"
+        tail -n 40 /tmp/openclaw-gateway.log | sed 's/^/[corp]   gateway | /'
+    else
+        warn "Gateway log not found at /tmp/openclaw-gateway.log"
+    fi
     return 1
 }
 
@@ -167,9 +300,10 @@ ensure_workspace_shared_link() {
 
 configure_api_provider() {
     local env_file="$1"
+    detect_provider_from_env
 
-    if [[ -n "${OPENAI_API_KEY:-}" || -n "${ANTHROPIC_API_KEY:-}" || -n "${OPENROUTER_API_KEY:-}" ]]; then
-        info "Detected existing provider configuration in .env"
+    if [[ -n "${CURRENT_PROVIDER_KIND:-}" ]]; then
+        info "Detected existing provider configuration in .env (${CURRENT_PROVIDER_LABEL})"
         if confirm "Keep existing provider configuration (recommended)?"; then
             info "✓ Keeping existing provider configuration unchanged"
             return 0
@@ -182,8 +316,9 @@ configure_api_provider() {
 
     case "$choice" in
         1)
+            clear_provider_env_vars "$env_file"
             read -r -p "newapi base URL (OpenAI-compatible, e.g. https://<your-domain>/v1): " NEWAPI_BASE_URL
-            read -r -p "newapi API key: " NEWAPI_API_KEY
+            prompt_secret "newapi API key: " NEWAPI_API_KEY
             [[ -z "${NEWAPI_BASE_URL:-}" ]] && error "newapi base URL is required"
             [[ -z "${NEWAPI_API_KEY:-}" ]] && error "newapi API key is required"
             upsert_env_var "$env_file" "OPENAI_BASE_URL" "$NEWAPI_BASE_URL"
@@ -191,26 +326,30 @@ configure_api_provider() {
             info "✓ Provider set to newapi (OPENAI_BASE_URL + OPENAI_API_KEY)"
             ;;
         2)
-            read -r -p "OpenAI API key: " OPENAI_KEY
+            clear_provider_env_vars "$env_file"
+            prompt_secret "OpenAI API key: " OPENAI_KEY
             [[ -z "${OPENAI_KEY:-}" ]] && error "OpenAI API key is required"
             upsert_env_var "$env_file" "OPENAI_API_KEY" "$OPENAI_KEY"
             info "✓ Provider set to OpenAI"
             ;;
         3)
-            read -r -p "Anthropic API key: " ANTHROPIC_KEY
+            clear_provider_env_vars "$env_file"
+            prompt_secret "Anthropic API key: " ANTHROPIC_KEY
             [[ -z "${ANTHROPIC_KEY:-}" ]] && error "Anthropic API key is required"
             upsert_env_var "$env_file" "ANTHROPIC_API_KEY" "$ANTHROPIC_KEY"
             info "✓ Provider set to Anthropic"
             ;;
         4)
-            read -r -p "OpenRouter API key: " OPENROUTER_KEY
+            clear_provider_env_vars "$env_file"
+            prompt_secret "OpenRouter API key: " OPENROUTER_KEY
             [[ -z "${OPENROUTER_KEY:-}" ]] && error "OpenRouter API key is required"
             upsert_env_var "$env_file" "OPENROUTER_API_KEY" "$OPENROUTER_KEY"
             info "✓ Provider set to OpenRouter"
             ;;
         5)
+            clear_provider_env_vars "$env_file"
             read -r -p "Custom OpenAI-compatible base URL: " CUSTOM_BASE_URL
-            read -r -p "Custom API key: " CUSTOM_API_KEY
+            prompt_secret "Custom API key: " CUSTOM_API_KEY
             [[ -z "${CUSTOM_BASE_URL:-}" ]] && error "Custom base URL is required"
             [[ -z "${CUSTOM_API_KEY:-}" ]] && error "Custom API key is required"
             upsert_env_var "$env_file" "OPENAI_BASE_URL" "$CUSTOM_BASE_URL"
@@ -218,6 +357,254 @@ configure_api_provider() {
             info "✓ Provider set to custom OpenAI-compatible endpoint"
             ;;
     esac
+}
+
+fetch_provider_models() {
+    local provider_kind="$1"
+    local provider_prefix="$2"
+    local base_url="$3"
+    local api_key="$4"
+
+    "$PYTHON_CMD" - "$provider_kind" "$provider_prefix" "$base_url" "$api_key" <<'PYEOF'
+import json
+import sys
+import urllib.request
+
+provider_kind, provider_prefix, base_url, api_key = sys.argv[1:]
+
+if provider_kind == "anthropic":
+    url = "https://api.anthropic.com/v1/models"
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+    }
+else:
+    base = (base_url or "").rstrip("/")
+    url = base + "/models"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    if provider_kind == "openrouter":
+        headers["HTTP-Referer"] = "https://github.com/profit-corp/profit-corp"
+        headers["X-Title"] = "Profit-Corp Setup"
+
+req = urllib.request.Request(url, headers=headers)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    payload = json.load(resp)
+
+items = payload.get("data", [])
+seen = set()
+for item in items:
+    model_id = ""
+    if isinstance(item, dict):
+        model_id = item.get("id") or item.get("name") or ""
+    if not model_id:
+        continue
+    ref = f"{provider_prefix}/{model_id}"
+    if ref in seen:
+        continue
+    seen.add(ref)
+    print(ref)
+PYEOF
+}
+
+print_model_catalog() {
+    local -n models_ref=$1
+    local count="${#models_ref[@]}"
+    local i
+    info "Available models discovered: $count"
+    for ((i = 0; i < count; i++)); do
+        printf '[corp]   %3d. %s\n' "$((i + 1))" "${models_ref[$i]}"
+    done
+}
+
+resolve_model_choice() {
+    local prompt="$1"
+    local provider_prefix="$2"
+    local -n models_ref=$3
+    local ans candidate i
+
+    while true; do
+        read -r -p "$prompt (number or model id/ref): " ans
+        [[ -z "$ans" ]] && { warn "A model choice is required."; continue; }
+
+        if [[ "$ans" =~ ^[0-9]+$ ]]; then
+            if (( ans >= 1 && ans <= ${#models_ref[@]} )); then
+                echo "${models_ref[$((ans - 1))]}"
+                return 0
+            fi
+            warn "Index out of range: $ans"
+            continue
+        fi
+
+        if [[ "$ans" == */* ]]; then
+            candidate="$ans"
+        else
+            candidate="${provider_prefix}/${ans}"
+        fi
+
+        for ((i = 0; i < ${#models_ref[@]}; i++)); do
+            if [[ "${models_ref[$i]}" == "$candidate" ]]; then
+                echo "$candidate"
+                return 0
+            fi
+        done
+
+        if ask_yes_no_default "Model '$candidate' was not returned by the provider. Use it anyway?" "N"; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+}
+
+collect_model_configuration() {
+    MODEL_CONFIG_MODE="keep"
+    MODEL_CATALOG_MODE="selected"
+    MODEL_DEFAULT_PRIMARY=""
+    MODEL_CATALOG_FILE="$OPENCLAW_CONFIG_DIR/model-catalog.txt"
+    : > "$MODEL_CATALOG_FILE"
+    declare -gA MODEL_AGENT_SELECTIONS=()
+
+    detect_provider_from_env
+    if [[ -z "$CURRENT_PROVIDER_KIND" ]]; then
+        warn "No active provider credentials found. Skipping model configuration."
+        return 0
+    fi
+
+    local model_mode
+    model_mode="$(ask_model_config_mode)"
+    if [[ "$model_mode" == "3" ]]; then
+        info "Keeping existing agent model configuration."
+        return 0
+    fi
+
+    local fetch_err model_output fetch_rc
+    fetch_err="$(mktemp)"
+    model_output="$(fetch_provider_models "$CURRENT_PROVIDER_KIND" "$CURRENT_PROVIDER_PREFIX" "$CURRENT_PROVIDER_BASE_URL" "$CURRENT_PROVIDER_API_KEY" 2>"$fetch_err")" || fetch_rc=$?
+    fetch_rc="${fetch_rc:-0}"
+    if [[ "$fetch_rc" -ne 0 ]]; then
+        warn "Could not fetch provider models automatically."
+        sed 's/^/[corp]     /' "$fetch_err" >&2 || true
+        AVAILABLE_MODELS=()
+    elif [[ -n "$model_output" ]]; then
+        mapfile -t AVAILABLE_MODELS <<< "$model_output"
+    else
+        AVAILABLE_MODELS=()
+    fi
+    rm -f "$fetch_err"
+
+    if [[ ${#AVAILABLE_MODELS[@]} -gt 0 ]]; then
+        print_model_catalog AVAILABLE_MODELS
+    else
+        warn "Falling back to manual model entry because no catalog was returned."
+        AVAILABLE_MODELS=("${CURRENT_PROVIDER_PREFIX}/manual-placeholder")
+    fi
+
+    if ask_yes_no_default "Write the full fetched model catalog into OpenCLAW's allowlist?" "N"; then
+        MODEL_CATALOG_MODE="full"
+    fi
+
+    local agents=(ceo scout cmo arch accountant)
+    local choice selected agent
+    if [[ "$model_mode" == "1" ]]; then
+        choice="$(resolve_model_choice "Choose the default model for all agents" "$CURRENT_PROVIDER_PREFIX" AVAILABLE_MODELS)"
+        MODEL_CONFIG_MODE="all"
+        MODEL_DEFAULT_PRIMARY="$choice"
+        for agent in "${agents[@]}"; do
+            MODEL_AGENT_SELECTIONS["$agent"]="$choice"
+        done
+    else
+        MODEL_CONFIG_MODE="per-agent"
+        for agent in "${agents[@]}"; do
+            selected="$(resolve_model_choice "Choose the default model for $agent" "$CURRENT_PROVIDER_PREFIX" AVAILABLE_MODELS)"
+            MODEL_AGENT_SELECTIONS["$agent"]="$selected"
+            [[ -z "$MODEL_DEFAULT_PRIMARY" ]] && MODEL_DEFAULT_PRIMARY="$selected"
+        done
+    fi
+
+    if [[ "$MODEL_CATALOG_MODE" == "full" && ${#AVAILABLE_MODELS[@]} -gt 0 ]]; then
+        printf '%s\n' "${AVAILABLE_MODELS[@]}" > "$MODEL_CATALOG_FILE"
+    else
+        printf '%s\n' "${MODEL_AGENT_SELECTIONS[@]}" | "$PYTHON_CMD" - <<'PYEOF' > "$MODEL_CATALOG_FILE"
+import sys
+seen = set()
+for line in sys.stdin:
+    model = line.strip()
+    if not model or model in seen:
+        continue
+    seen.add(model)
+    print(model)
+PYEOF
+    fi
+}
+
+apply_model_configuration() {
+    local config_path="$1"
+
+    [[ "${MODEL_CONFIG_MODE:-keep}" == "keep" ]] && return 0
+    [[ ! -f "$config_path" ]] && return 0
+
+    MODEL_DEFAULT_PRIMARY="${MODEL_DEFAULT_PRIMARY:-}"
+    MODEL_CATALOG_FILE="${MODEL_CATALOG_FILE:-}"
+    CEO_MODEL="${MODEL_AGENT_SELECTIONS[ceo]:-}"
+    SCOUT_MODEL="${MODEL_AGENT_SELECTIONS[scout]:-}"
+    CMO_MODEL="${MODEL_AGENT_SELECTIONS[cmo]:-}"
+    ARCH_MODEL="${MODEL_AGENT_SELECTIONS[arch]:-}"
+    ACCOUNTANT_MODEL="${MODEL_AGENT_SELECTIONS[accountant]:-}"
+    export MODEL_CONFIG_MODE MODEL_DEFAULT_PRIMARY MODEL_CATALOG_FILE
+    export CEO_MODEL SCOUT_MODEL CMO_MODEL ARCH_MODEL ACCOUNTANT_MODEL
+
+    "$PYTHON_CMD" - "$config_path" <<'PYEOF'
+import json
+import os
+import sys
+
+config_path = sys.argv[1]
+mode = os.environ.get("MODEL_CONFIG_MODE", "keep")
+if mode == "keep":
+    raise SystemExit(0)
+
+with open(config_path, "r", encoding="utf-8") as f:
+    cfg = json.load(f)
+
+catalog_path = os.environ.get("MODEL_CATALOG_FILE", "")
+catalog = []
+if catalog_path and os.path.exists(catalog_path):
+    with open(catalog_path, "r", encoding="utf-8") as f:
+        catalog = [line.strip() for line in f if line.strip()]
+
+agents = cfg.setdefault("agents", {})
+defaults = agents.setdefault("defaults", {})
+primary = os.environ.get("MODEL_DEFAULT_PRIMARY", "").strip()
+if primary:
+    defaults["model"] = {"primary": primary}
+
+if catalog:
+    defaults["models"] = {ref: {} for ref in catalog}
+else:
+    defaults.pop("models", None)
+
+per_agent = {
+    "ceo": os.environ.get("CEO_MODEL", "").strip(),
+    "scout": os.environ.get("SCOUT_MODEL", "").strip(),
+    "cmo": os.environ.get("CMO_MODEL", "").strip(),
+    "arch": os.environ.get("ARCH_MODEL", "").strip(),
+    "accountant": os.environ.get("ACCOUNTANT_MODEL", "").strip(),
+}
+
+for agent in agents.get("list", []):
+    agent_id = agent.get("id")
+    if mode == "all":
+        agent.pop("model", None)
+        continue
+    selected = per_agent.get(agent_id, "")
+    if selected:
+        agent["model"] = {"primary": selected}
+    else:
+        agent.pop("model", None)
+
+with open(config_path, "w", encoding="utf-8") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+PYEOF
 }
 
 # ── Detect paths ─────────────────────────────────────────────────────────────
@@ -269,6 +656,7 @@ fi
 
 configure_api_provider "$ENV_FILE"
 load_env_file "$ENV_FILE"
+collect_model_configuration
 
 # ── Ensure ~/.openclaw dir exists ─────────────────────────────────────────────
 mkdir -p "$OPENCLAW_CONFIG_DIR"
@@ -371,11 +759,20 @@ fi
 info "✓ Config written to $OPENCLAW_CONFIG"
 
 # ── Preflight: normalize config and ensure gateway availability ───────────────
+if [[ "$CONFIG_ACTION" == "S" ]]; then
+    if [[ "${MODEL_CONFIG_MODE:-keep}" != "keep" ]]; then
+        warn "Model configuration changes were collected but openclaw.json write was skipped, so they were not applied."
+    fi
+else
+    apply_model_configuration "$OPENCLAW_CONFIG"
+fi
+
 info "Running OpenCLAW config preflight..."
 openclaw doctor --fix >/dev/null 2>&1 || true
 
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
-ensure_gateway_ready "$OPENCLAW_PORT" 30 1
+ensure_gateway_ready "$OPENCLAW_PORT" 30 1 || \
+    error "Gateway is required for agent registration. Fix the gateway error above and rerun."
 
 # ── Remove legacy 'main' default agent ───────────────────────────────────────
 # OpenCLAW's single-agent mode creates a "main" workspace/agent by default.
@@ -416,6 +813,9 @@ for agent in "${agents[@]}"; do
     else
         warn "  ⚠ Could not register $agent"
         echo "$out" | sed 's/^/[corp]     /'
+    fi
+    if [[ $rc -ne 0 ]] && echo "$out" | grep -qi "already exists"; then
+        warn "    Existing agent IDs are not re-bound automatically. If workspace path/meta changed, run ./reset_roles.sh"
     fi
     unset rc
 done
@@ -461,7 +861,8 @@ else
 3. Use sessions_spawn to ask Arch to write the tech spec.
 4. Make your GO/NO-GO decision.
 5. Use sessions_spawn to ask Accountant to run the daily audit.
-Deliver a concise executive summary of the outcome to this Telegram chat."
+Deliver a concise executive summary of the outcome to this Telegram chat.
+Use Simplified Chinese unless the shareholder explicitly asks for another language."
 
     cron_args=(
         --name "Daily SaaS Incubator"
@@ -478,8 +879,15 @@ Deliver a concise executive summary of the outcome to this Telegram chat."
         warn "TELEGRAM_CHAT_ID not set — cron job will run silently (no Telegram delivery)."
     fi
 
-    openclaw cron add "${cron_args[@]}" \
-        2>/dev/null || warn "Could not register cron job. Check gateway health and run: openclaw cron list"
+    ensure_gateway_ready "$OPENCLAW_PORT" 30 1 || \
+        error "Gateway is required for cron registration. Fix the gateway error above and rerun."
+    cron_out="$(openclaw cron add "${cron_args[@]}" 2>&1)" || cron_rc=$?
+    cron_rc=${cron_rc:-0}
+    if [[ $cron_rc -ne 0 ]]; then
+        warn "Could not register cron job. Check the error details below:"
+        echo "$cron_out" | sed 's/^/[corp]     /'
+        warn "Run: openclaw cron list"
+    fi
 fi
 
 # ── Initialise Ledger (idempotent reset) ──────────────────────────────────────

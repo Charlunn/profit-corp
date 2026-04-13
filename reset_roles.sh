@@ -39,6 +39,26 @@ wait_for_gateway_ready() {
   return 1
 }
 
+ensure_gateway_ready() {
+  local port="$1"
+  local timeout_s="${2:-30}"
+  local interval_s="${3:-1}"
+
+  start_gateway_if_needed "$port"
+  if wait_for_gateway_ready "$timeout_s" "$interval_s"; then
+    return 0
+  fi
+
+  warn "Gateway did not become ready within ${timeout_s}s."
+  if [[ -f /tmp/openclaw-gateway.log ]]; then
+    warn "Recent gateway log tail:"
+    tail -n 40 /tmp/openclaw-gateway.log | sed 's/^/[reset]   gateway | /'
+  else
+    warn "Gateway log not found at /tmp/openclaw-gateway.log"
+  fi
+  return 1
+}
+
 ensure_workspace_shared_link() {
   local workspace="$1"
   local shared_target="$CORP_ROOT/shared"
@@ -106,7 +126,8 @@ if confirm "Also clear local agent session folders under $OPENCLAW_STATE_DIR/age
 fi
 
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
-ensure_gateway_ready "$OPENCLAW_PORT" 30 1
+ensure_gateway_ready "$OPENCLAW_PORT" 30 1 || \
+  error "Gateway is required for role reset. Fix the gateway error above and rerun."
 
 info "Removing legacy 'main' agent if present..."
 openclaw agents remove main --force >/dev/null 2>&1 || true
