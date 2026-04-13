@@ -10,8 +10,18 @@ warn()  { echo -e "${YELLOW}[reset]${NC} $*"; }
 error() { echo -e "${RED}[reset]${NC} $*" >&2; exit 1; }
 confirm() { read -r -p "$1 [y/N] " ans; [[ "$ans" =~ ^[Yy]$ ]]; }
 
+load_env_file() {
+  local env_file="$1"
+  local normalized="$OPENCLAW_STATE_DIR/.env.normalized"
+  sed 's/\r$//' "$env_file" > "$normalized"
+  set -a
+  # shellcheck disable=SC1090
+  source "$normalized"
+  set +a
+}
+
 is_gateway_ready() {
-  openclaw agents list >/dev/null 2>&1
+  openclaw gateway status >/dev/null 2>&1
 }
 
 start_gateway_if_needed() {
@@ -102,9 +112,16 @@ ensure_workspace_shared_link() {
 
 CORP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+ENV_FILE="$CORP_ROOT/.env"
 
 if ! command -v openclaw >/dev/null 2>&1; then
   error "OpenCLAW not found. Install it first: npm install -g openclaw@latest"
+fi
+
+if [[ -f "$ENV_FILE" ]]; then
+  load_env_file "$ENV_FILE"
+else
+  warn ".env not found at $ENV_FILE; OpenCLAW commands will rely on your current shell env."
 fi
 
 agents=(scout cmo arch ceo accountant)
