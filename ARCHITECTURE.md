@@ -166,7 +166,7 @@ appear in Telegram's "/" menu as **clickable buttons**. No manual typing needed:
 | Command | Target |
 |---|---|
 | `/help` | CEO replies with formatted command list |
-| `/new_project` | CEO runs interactive guided questionnaire → Scout chain |
+| `/new_project` | CEO runs auto discovery (48h) → quantitative ranking Top3 → user select → pipeline continues |
 | `/status` | CEO reads LEDGER.json |
 | `/daily` | CEO triggers full pipeline |
 | `/revenue <amt> <src> <note>` | Accountant records revenue (RBAC gate if ≥ 1000) |
@@ -178,27 +178,32 @@ appear in Telegram's "/" menu as **clickable buttons**. No manual typing needed:
 | `/confirm` | Confirms the last pending sensitive operation |
 | `/cancel` | Cancels the last pending sensitive operation |
 
-### 3.3 Interactive `/new_project` Questionnaire
+### 3.3 `/new_project` Auto Flow (Default)
 
-For non-technical users, `/new_project` with no argument triggers a step-by-step dialog:
+For shareholder efficiency, `/new_project` now runs an execution-first flow by default:
 
 ```
 User: /new_project
-CEO:  🚀 Let's start a new project! What problem does it solve? (one sentence)
-User: Developers forget to update their changelogs
-CEO:  Who are the customers? (e.g. developers, small businesses, ...)
-User: Individual developers and small teams
-CEO:  Any known competitors? (or type 'none')
-User: Keep a Changelog (manual), git-cliff (auto but no UI)
-CEO:  What's your rough pricing idea?
-User: $5/mo
-CEO:  Ready! I'll brief Scout and CMO now. 🔍
-      [sessions_spawn Scout + CMO + Arch chain]
+CEO:  🚀 已启动自动流程：我会先抓取近48小时机会并量化评分，随后给你Top3供选择。
+      [sessions_spawn Scout + CMO]
+CEO:  这是Top3候选（含总分与分项）。请回复 1/2/3 或 idea_id。
+User: 2
+CEO:  已确认。现在推进 MARKET_PLAN -> TECH_SPEC -> GO/NO-GO。
+      [CMO 深化 + Arch 规格 + CEO 决策]
 ```
 
-No parameters, no JSON, no command-line syntax — just chat.
+默认不再逐条追问 kickoff 基础信息（除非股东明确要求“自定义模式”）。
 
-### 3.4 RBAC Confirmation Gates
+### 3.4 Failure & Data-Limit Fallbacks
+
+When fresh external evidence is insufficient:
+- First keep strict 48h window;
+- If qualified candidates < 3, expand to 7 days and label affected ideas with low confidence;
+- If external search is unavailable, output provisional ideas marked `NEEDS_VERIFICATION` and continue after explicit shareholder selection.
+
+Agents must not fabricate certainty: all low-confidence assumptions must be explicitly labeled in outputs.
+
+### 3.5 RBAC Confirmation Gates
 
 Sensitive operations require the user to type `/confirm` before execution:
 
@@ -218,7 +223,7 @@ The same two-step gate applies to:
 Any reply other than `/confirm` cancels the pending action. `/cancel` clears the queue explicitly.
 The `rbac.sensitiveOps` list in `openclaw.json` documents the full policy.
 
-### 3.5 Feedback Loop
+### 3.6 Feedback Loop
 
 ```
 You → /revenue 500 product_hunt "App featured"

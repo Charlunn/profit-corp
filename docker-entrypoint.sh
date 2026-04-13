@@ -18,9 +18,47 @@ echo "[entrypoint] Starting Profit-Corp gateway..."
 echo "[entrypoint] Corp root: $CORP_ROOT"
 echo "[entrypoint] State dir: $STATE_DIR"
 
-mkdir -p "$STATE_DIR"
+ensure_workspace_shared_link() {
+    local workspace="$1"
+    local shared_target="$CORP_ROOT/shared"
+    local shared_link="$workspace/shared"
+    local backup="${shared_link}.bak.$(date +%Y%m%d_%H%M%S)"
 
-# ── Write openclaw.json (on first run or if missing) ─────────────────────────
+    if [[ ! -d "$workspace" ]]; then
+        echo "[entrypoint] WARN: workspace missing, cannot wire shared link: $workspace"
+        return 0
+    fi
+
+    if [[ -L "$shared_link" ]]; then
+        return 0
+    fi
+
+    if [[ -e "$shared_link" ]]; then
+        if diff -qr "$shared_target" "$shared_link" >/dev/null 2>&1; then
+            rm -rf "$shared_link"
+        else
+            mv "$shared_link" "$backup"
+            echo "[entrypoint] WARN: found diverged shared copy in $workspace; moved to $backup"
+        fi
+    fi
+
+    if ln -s "$shared_target" "$shared_link" 2>/dev/null; then
+        return 0
+    fi
+
+    if command -v cygpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
+        local win_link win_target
+        win_link="$(cygpath -w "$shared_link")"
+        win_target="$(cygpath -w "$shared_target")"
+        cmd.exe /c mklink /J "$win_link" "$win_target" >/dev/null 2>&1 || true
+        if [[ -e "$shared_link/manage_finance.py" ]]; then
+            return 0
+        fi
+    fi
+
+    echo "[entrypoint] WARN: failed to mount shared path for $workspace (link/junction)."
+}
+
 if [[ ! -f "$OPENCLAW_CONFIG" ]]; then
     echo "[entrypoint] Writing openclaw.json..."
     # Use Python instead of sed to safely handle paths with special characters (|, spaces, etc.)
@@ -67,6 +105,11 @@ if [[ -d "$MAIN_WORKSPACE" ]]; then
 fi
 echo "[entrypoint] ✓ Default agent cleanup complete."
 echo "[entrypoint] NOTE: after gateway is up, verify bindings with: openclaw agents list --bindings (telegram/webchat/webhook -> ceo)"
+
+# ── Ensure each workspace can resolve shared/* paths ─────────────────────────
+for agent in scout cmo arch ceo accountant; do
+    ensure_workspace_shared_link "$CORP_ROOT/workspaces/$agent"
+done
 
 # ── Ensure archives directory exists ─────────────────────────────────────────
 mkdir -p "$CORP_ROOT/archives"

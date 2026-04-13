@@ -4,12 +4,47 @@
 ## [Scout] PAIN_POINTS.md
 ```markdown
 # Daily Intelligence Report - {{date}}
-## Leads
+## Leads (Scoring-Ready)
 ### Lead: {{title}}
+- **Idea ID**: {{idea_id}}
 - **Problem**: {{description}}
-- **Evidence**: {{url}}
-- **Urgency**: {{1-10}}
-- **Monetization**: {{why_pay}}
+- **Target User**: {{target_user}}
+- **Evidence Links**: {{url_list}}
+- **Latest Evidence Age (hours)**: {{hours}}
+- **Urgency Pain (0-10)**: {{score}}
+- **Estimated MVP Hours**: {{hours}}
+- **Monetization Signal (0-10)**: {{score}}
+- **Competition Signal (0-10)**: {{score}}
+- **Confidence (0-10)**: {{score}}
+- **Notes**: {{assumptions_or_risks}}
+```
+
+## [CMO] Idea Scorecard (Quantitative)
+```markdown
+### Scorecard: {{idea_id}} - {{title}}
+- **UrgencyPain (0-10, weight 25%)**: {{score}}
+- **OneDayFeasibility (0-10, weight 25%)**: {{score}}
+- **MonetizationSpeed (0-10, weight 20%)**: {{score}}
+- **EvidenceStrength (0-10, weight 15%)**: {{score}}
+- **Recency (0-10, weight 10%)**: {{score}}
+- **CompetitionGap (0-10, weight 5%)**: {{score}}
+- **TotalScore (0-100)**: {{total}}
+- **Formula**: `Total = 10 * (0.25*UrgencyPain + 0.25*OneDayFeasibility + 0.20*MonetizationSpeed + 0.15*EvidenceStrength + 0.10*Recency + 0.05*CompetitionGap)`
+- **Hard Filters Passed**: {{yes_no}}
+```
+
+## [CEO] Top3 Ranking Output
+```markdown
+## Top 3 Ranked Micro-SaaS Ideas (last 48h)
+| Rank | idea_id | Idea | TotalScore/100 | Urgency | Feasibility | Monetization | Evidence | Recency | Competition | MVP Hours |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | {{idea_id_1}} | {{idea_1}} | {{score_1}} | {{u1}} | {{f1}} | {{m1}} | {{e1}} | {{r1}} | {{c1}} | {{h1}} |
+| 2 | {{idea_id_2}} | {{idea_2}} | {{score_2}} | {{u2}} | {{f2}} | {{m2}} | {{e2}} | {{r2}} | {{c2}} | {{h2}} |
+| 3 | {{idea_id_3}} | {{idea_3}} | {{score_3}} | {{u3}} | {{f3}} | {{m3}} | {{e3}} | {{r3}} | {{c3}} | {{h3}} |
+
+**Recommended**: {{idea_id_recommended}} — {{one_line_why}}
+
+Reply with `1/2/3` or `idea_id` to continue automatically.
 ```
 
 ## [CMO] MARKET_PLAN.md

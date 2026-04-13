@@ -95,6 +95,76 @@ load_env_file() {
     set +a
 }
 
+is_gateway_ready() {
+    openclaw agents list >/dev/null 2>&1
+}
+
+start_gateway_if_needed() {
+    local port="$1"
+    if is_gateway_ready; then
+        return 0
+    fi
+    warn "Gateway not reachable yet. Auto-starting gateway on port $port ..."
+    nohup openclaw gateway --port "$port" >/tmp/openclaw-gateway.log 2>&1 &
+}
+
+wait_for_gateway_ready() {
+    local timeout_s="$1"
+    local interval_s="$2"
+    local elapsed=0
+
+    while (( elapsed < timeout_s )); do
+        if is_gateway_ready; then
+            return 0
+        fi
+        sleep "$interval_s"
+        elapsed=$((elapsed + interval_s))
+    done
+
+    return 1
+}
+
+ensure_workspace_shared_link() {
+    local workspace="$1"
+    local shared_target="$CORP_ROOT/shared"
+    local shared_link="$workspace/shared"
+    local backup="${shared_link}.bak.$(date +%Y%m%d_%H%M%S)"
+
+    if [[ ! -d "$workspace" ]]; then
+        warn "Workspace missing, cannot wire shared link: $workspace"
+        return 0
+    fi
+
+    if [[ -L "$shared_link" ]]; then
+        return 0
+    fi
+
+    if [[ -e "$shared_link" ]]; then
+        if diff -qr "$shared_target" "$shared_link" >/dev/null 2>&1; then
+            rm -rf "$shared_link"
+        else
+            mv "$shared_link" "$backup"
+            warn "Found diverged shared copy in $workspace; moved to $backup"
+        fi
+    fi
+
+    if ln -s "$shared_target" "$shared_link" 2>/dev/null; then
+        return 0
+    fi
+
+    if command -v cygpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
+        local win_link win_target
+        win_link="$(cygpath -w "$shared_link")"
+        win_target="$(cygpath -w "$shared_target")"
+        cmd.exe /c mklink /J "$win_link" "$win_target" >/dev/null 2>&1 || true
+        if [[ -e "$shared_link/manage_finance.py" ]]; then
+            return 0
+        fi
+    fi
+
+    warn "Failed to mount shared path for $workspace (link/junction)."
+}
+
 configure_api_provider() {
     local env_file="$1"
 
@@ -305,11 +375,7 @@ info "Running OpenCLAW config preflight..."
 openclaw doctor --fix >/dev/null 2>&1 || true
 
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
-if ! openclaw agents list >/dev/null 2>&1; then
-    warn "Gateway not reachable yet. Auto-starting gateway on port $OPENCLAW_PORT ..."
-    nohup openclaw gateway --port "$OPENCLAW_PORT" >/tmp/openclaw-gateway.log 2>&1 &
-    sleep 1
-fi
+ensure_gateway_ready "$OPENCLAW_PORT" 30 1
 
 # ── Remove legacy 'main' default agent ───────────────────────────────────────
 # OpenCLAW's single-agent mode creates a "main" workspace/agent by default.
@@ -336,6 +402,7 @@ info "Registering corp agents with OpenCLAW..."
 agents=(scout cmo arch ceo accountant)
 for agent in "${agents[@]}"; do
     workspace="$CORP_ROOT/workspaces/$agent"
+    ensure_workspace_shared_link "$workspace"
     info "  → Adding agent: $agent (workspace: $workspace)"
 
     # Treat "already exists" as success; only warn on real failures.
@@ -356,24 +423,33 @@ done
 # ── Post-setup binding verification ───────────────────────────────────────────
 info "Verifying CEO default routing bindings..."
 BINDINGS_OUT="$(openclaw agents list --bindings 2>/dev/null || true)"
-if echo "$BINDINGS_OUT" | grep -q "telegram.*ceo" && \
-   echo "$BINDINGS_OUT" | grep -q "webchat.*ceo" && \
-   echo "$BINDINGS_OUT" | grep -q "webhook.*ceo"; then
+missing_bindings=()
+
+if ! echo "$BINDINGS_OUT" | grep -Eiq 'telegram.*ceo|ceo.*telegram'; then
+    missing_bindings+=("telegram -> ceo")
+fi
+if ! echo "$BINDINGS_OUT" | grep -Eiq 'webchat.*ceo|ceo.*webchat'; then
+    missing_bindings+=("webchat -> ceo")
+fi
+if ! echo "$BINDINGS_OUT" | grep -Eiq 'webhook.*ceo|ceo.*webhook'; then
+    missing_bindings+=("webhook -> ceo")
+fi
+
+if [[ ${#missing_bindings[@]} -eq 0 ]]; then
     info "✓ CEO bindings verified for telegram/webchat/webhook"
 else
-    warn "Could not confirm full CEO bindings from gateway output."
+    warn "Could not confirm all CEO bindings. Missing: ${missing_bindings[*]}"
     warn "Run: openclaw agents list --bindings"
 fi
 
+info "Verifying workspace shared links..."
+for agent in "${agents[@]}"; do
+    workspace="$CORP_ROOT/workspaces/$agent"
+    ensure_workspace_shared_link "$workspace"
+done
+
 # ── Register daily cron job ───────────────────────────────────────────────────
 info "Registering native daily pipeline cron job (08:00 $OPENCLAW_TZ)..."
-
-if [[ -n "$TELEGRAM_CHAT_ID" ]]; then
-    CRON_DELIVER="--announce --channel telegram --to \"$TELEGRAM_CHAT_ID\""
-else
-    CRON_DELIVER=""
-    warn "TELEGRAM_CHAT_ID not set — cron job will run silently (no Telegram delivery)."
-fi
 
 # Check if the cron job already exists
 if openclaw cron list 2>/dev/null | grep -q "Daily SaaS Incubator"; then
@@ -387,16 +463,23 @@ else
 5. Use sessions_spawn to ask Accountant to run the daily audit.
 Deliver a concise executive summary of the outcome to this Telegram chat."
 
-    # shellcheck disable=SC2086
-    openclaw cron add \
-        --name "Daily SaaS Incubator" \
-        --cron "0 8 * * *" \
-        --tz "$OPENCLAW_TZ" \
-        --agent ceo \
-        --session isolated \
-        --message "$CRON_MSG" \
-        $CRON_DELIVER \
-        2>/dev/null || warn "Could not register cron job — gateway may not be running yet."
+    cron_args=(
+        --name "Daily SaaS Incubator"
+        --cron "0 8 * * *"
+        --tz "$OPENCLAW_TZ"
+        --agent ceo
+        --session isolated
+        --message "$CRON_MSG"
+    )
+
+    if [[ -n "$TELEGRAM_CHAT_ID" ]]; then
+        cron_args+=(--announce --channel telegram --to "$TELEGRAM_CHAT_ID")
+    else
+        warn "TELEGRAM_CHAT_ID not set — cron job will run silently (no Telegram delivery)."
+    fi
+
+    openclaw cron add "${cron_args[@]}" \
+        2>/dev/null || warn "Could not register cron job. Check gateway health and run: openclaw cron list"
 fi
 
 # ── Initialise Ledger (idempotent reset) ──────────────────────────────────────
